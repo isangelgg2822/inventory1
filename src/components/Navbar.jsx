@@ -1,86 +1,150 @@
 // src/components/Navbar.jsx
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { useState } from 'react';
 import { supabase } from '../supabase';
-import { AppBar, Toolbar, Typography, Button, Box, Avatar } from '@mui/material';
+import { useNavigate, useLocation } from 'react-router-dom';
+import {
+  Drawer,
+  List,
+  ListItem,
+  ListItemIcon,
+  ListItemText,
+  Divider,
+  IconButton,
+  Box,
+  Typography,
+  useMediaQuery,
+  useTheme,
+} from '@mui/material';
+import HomeIcon from '@mui/icons-material/Home';
 import StoreIcon from '@mui/icons-material/Store';
+import PointOfSaleIcon from '@mui/icons-material/PointOfSale';
+import AssessmentIcon from '@mui/icons-material/Assessment';
+import SettingsIcon from '@mui/icons-material/Settings';
+import LogoutIcon from '@mui/icons-material/Logout';
+import MenuIcon from '@mui/icons-material/Menu';
+import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
+
+const drawerWidth = 240;
 
 function Navbar() {
   const navigate = useNavigate();
-  const location = useLocation(); // Para detectar la ruta actual
+  const location = useLocation();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const [open, setOpen] = useState(!isMobile);
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    navigate('/');
+  const handleDrawerOpen = () => {
+    setOpen(true);
   };
 
-  const isActive = (path) => location.pathname === path;
+  const handleDrawerClose = () => {
+    setOpen(false);
+  };
+
+  const handleSignOut = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      console.error('Error signing out:', error);
+      alert('Error al cerrar sesión');
+      return;
+    }
+    navigate('/login');
+  };
+
+  const menuItems = [
+    { text: 'Inicio', icon: <HomeIcon />, path: '/' },
+    { text: 'Inventario', icon: <StoreIcon />, path: '/inventory' },
+    { text: 'Ventas', icon: <PointOfSaleIcon />, path: '/pos' },
+    { text: 'Reportes', icon: <AssessmentIcon />, path: '/reports' },
+    { text: 'Configuración', icon: <SettingsIcon />, path: '/settings' },
+  ];
 
   return (
-    <AppBar position="static" sx={{ backgroundColor: '#fff', color: '#2d3748', boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)' }}>
-      <Toolbar>
-        <Box sx={{ display: 'flex', alignItems: 'center', flexGrow: 1 }}>
-          <Avatar sx={{ bgcolor: '#1976d2', mr: 2 }}>
-            <StoreIcon />
-          </Avatar>
-          <Typography variant="h6" component="div">
+    <>
+      {isMobile && (
+        <IconButton
+          color="inherit"
+          edge="start"
+          onClick={handleDrawerOpen}
+          sx={{ position: 'fixed', top: 10, left: 10, zIndex: 1200 }}
+        >
+          <MenuIcon />
+        </IconButton>
+      )}
+
+      <Drawer
+        variant={isMobile ? 'temporary' : 'permanent'}
+        open={open}
+        onClose={handleDrawerClose}
+        sx={{
+          width: open ? drawerWidth : 0,
+          flexShrink: 0,
+          '& .MuiDrawer-paper': {
+            width: drawerWidth,
+            boxSizing: 'border-box',
+            backgroundColor: '#f9fafb',
+            borderRight: '1px solid #e0e0e0',
+          },
+        }}
+      >
+        <Box sx={{ display: 'flex', alignItems: 'center', p: 1, justifyContent: 'space-between' }}>
+          <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#111827' }}>
             Mi Tienda
           </Typography>
+          {open && (
+            <IconButton onClick={handleDrawerClose}>
+              <ChevronLeftIcon />
+            </IconButton>
+          )}
         </Box>
-        <Box sx={{ display: 'flex', gap: 3 }}>
-          <Button
-            color="primary"
-            component={Link}
-            to="/inventory"
-            sx={{
-              bgcolor: isActive('/inventory') ? '#e3f2fd' : 'transparent',
-              borderRadius: '8px',
-              '&:hover': { bgcolor: '#e3f2fd' },
-            }}
+        <Divider />
+
+        <Typography
+          variant="caption"
+          sx={{ pl: 2, pt: 2, pb: 1, color: '#6b7280', fontWeight: 'bold' }}
+        >
+          MANAGE
+        </Typography>
+        <List>
+          {menuItems.map((item) => (
+            <ListItem
+              button
+              key={item.text}
+              onClick={() => {
+                navigate(item.path);
+                if (isMobile) handleDrawerClose();
+              }}
+              sx={{
+                '&:hover': { backgroundColor: '#e5e7eb' },
+                backgroundColor: location.pathname === item.path ? '#e5e7eb' : 'transparent',
+              }}
+            >
+              <ListItemIcon sx={{ color: '#6b7280' }}>{item.icon}</ListItemIcon>
+              <ListItemText primary={item.text} sx={{ color: '#111827' }} />
+            </ListItem>
+          ))}
+        </List>
+
+        <Typography
+          variant="caption"
+          sx={{ pl: 2, pt: 2, pb: 1, color: '#6b7280', fontWeight: 'bold' }}
+        >
+          CONFIGURATION
+        </Typography>
+        <List>
+          <ListItem
+            button
+            onClick={handleSignOut}
+            sx={{ '&:hover': { backgroundColor: '#e5e7eb' } }}
           >
-            Inventario
-          </Button>
-          <Button
-            color="primary"
-            component={Link}
-            to="/reports"
-            sx={{
-              bgcolor: isActive('/reports') ? '#e3f2fd' : 'transparent',
-              borderRadius: '8px',
-              '&:hover': { bgcolor: '#e3f2fd' },
-            }}
-          >
-            Reportes
-          </Button>
-          <Button
-            color="primary"
-            component={Link}
-            to="/pos"
-            sx={{
-              bgcolor: isActive('/pos') ? '#e3f2fd' : 'transparent',
-              borderRadius: '8px',
-              '&:hover': { bgcolor: '#e3f2fd' },
-            }}
-          >
-            POS
-          </Button>
-          <Button
-            color="primary"
-            component={Link}
-            to="/settings"
-            sx={{
-              bgcolor: isActive('/settings') ? '#e3f2fd' : 'transparent',
-              borderRadius: '8px',
-              '&:hover': { bgcolor: '#e3f2fd' },
-            }}
-          >
-            Configuración
-          </Button>
-          <Button color="secondary" onClick={handleLogout}>
-            Cerrar Sesión
-          </Button>
-        </Box>
-      </Toolbar>
-    </AppBar>
+            <ListItemIcon sx={{ color: '#6b7280' }}>
+              <LogoutIcon />
+            </ListItemIcon>
+            <ListItemText primary="Cerrar Sesión" sx={{ color: '#111827' }} />
+          </ListItem>
+        </List>
+      </Drawer>
+    </>
   );
 }
 

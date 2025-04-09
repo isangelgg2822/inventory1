@@ -1,5 +1,5 @@
 // src/components/POS/POS.jsx
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { supabase } from '../../supabase';
 import Navbar from '../Navbar';
 import {
@@ -24,11 +24,52 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  useMediaQuery,
+  useTheme,
+  Grid, // Importamos Grid desde @mui/material
 } from '@mui/material';
 import ReceiptIcon from '@mui/icons-material/Receipt';
 import CancelIcon from '@mui/icons-material/Cancel';
 import PrintIcon from '@mui/icons-material/Print';
-import { v4 as uuidv4 } from 'uuid'; // Para generar un sale_group_id único
+import { v4 as uuidv4 } from 'uuid';
+import { useDashboard } from '../../context/DashboardHooks';
+
+// Componente memoizado para las filas de la tabla
+const CartRow = memo(({ item, index }) => (
+  <TableRow key={index}>
+    <TableCell>{item.name}</TableCell>
+    <TableCell>{item.quantity}</TableCell>
+    <TableCell>{item.priceWithIvaBs.toFixed(2)}</TableCell>
+    <TableCell>{item.totalBs.toFixed(2)}</TableCell>
+  </TableRow>
+));
+
+// Componente memoizado para las filas de ventas recientes
+const SaleRow = memo(({ group, index, reprintTicket, setSelectedSaleGroup, setOpenCancelDialog }) => (
+  <TableRow key={group.sale_group_id}>
+    <TableCell>Venta #{index + 1}</TableCell>
+    <TableCell>{new Date(group.date).toLocaleString()}</TableCell>
+    <TableCell>{group.total.toFixed(2)}</TableCell>
+    <TableCell>
+      <Tooltip title="Reimprimir Ticket">
+        <IconButton color="primary" onClick={() => reprintTicket(group)}>
+          <PrintIcon />
+        </IconButton>
+      </Tooltip>
+      <Tooltip title="Anular Venta">
+        <IconButton
+          color="secondary"
+          onClick={() => {
+            setSelectedSaleGroup(group);
+            setOpenCancelDialog(true);
+          }}
+        >
+          <CancelIcon />
+        </IconButton>
+      </Tooltip>
+    </TableCell>
+  </TableRow>
+));
 
 function POS() {
   const [products, setProducts] = useState([]);
@@ -37,20 +78,20 @@ function POS() {
   const [cart, setCart] = useState([]);
   const [openTicket, setOpenTicket] = useState(false);
   const [saleDetails, setSaleDetails] = useState(null);
-  const [exchangeRate, setExchangeRate] = useState(1); // Tasa de cambio por defecto
-  const [salesGroups, setSalesGroups] = useState([]); // Grupos de ventas recientes
+  const [exchangeRate, setExchangeRate] = useState(1);
+  const [salesGroups, setSalesGroups] = useState([]);
   const [openCancelDialog, setOpenCancelDialog] = useState(false);
   const [selectedSaleGroup, setSelectedSaleGroup] = useState(null);
   const componentRef = useRef();
 
-  useEffect(() => {
-    fetchProducts();
-    fetchExchangeRate();
-    fetchSalesGroups();
-  }, []);
+  const { fetchDailySales, fetchTotalProducts } = useDashboard();
 
-  const fetchProducts = async () => {
-    const { data, error } = await supabase.from('products').select('*');
+  const IVA_RATE = 0.16;
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+
+  const fetchProducts = useCallback(async () => {
+    const { data, error } = await supabase.from('products').select('*').limit(50);
     if (error) {
       console.error('Error fetching products:', error);
       alert(`Error al recuperar los productos: ${error.message} (Código: ${error.code})`);
@@ -58,9 +99,9 @@ function POS() {
       return;
     }
     setProducts(data || []);
-  };
+  }, []);
 
-  const fetchExchangeRate = async () => {
+  const fetchExchangeRate = useCallback(async () => {
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     if (userError || !user) {
       console.error('Error getting user:', userError);
@@ -81,55 +122,17 @@ function POS() {
     if (data) {
       setExchangeRate(parseFloat(data.value) || 1);
     }
-  };
+  }, []);
 
-  const fetchSalesGroups = async () => {
-    const { data: sales, error } = await supabase
-      .from('sales')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      if (error.code === '42703') {
-        console.warn('created_at column does not exist, falling back to ordering by id');
-        const { data: fallbackSales, error: fallbackError } = await supabase
-          .from('sales')
-          .select('*')
-          .order('id', { ascending: false });
-
-        if (fallbackError) {
-          console.error('Error fetching sales (fallback):', fallbackError);
-          alert(`Error al recuperar las ventas (fallback): ${fallbackError.message} (Código: ${fallbackError.code})`);
-          setSalesGroups([]);
-          return;
-        }
-
-        handleSalesData(fallbackSales);
-        return;
-      }
-
-      console.error('Error fetching sales:', error);
-      alert(`Error al recuperar las ventas: ${error.message} (Código: ${error.code})`);
-      setSalesGroups([]);
-      return;
-    }
-
-    handleSalesData(sales);
-  };
-
-  const handleSalesData = (sales) => {
+  const handleSalesData = useCallback((sales) => {
     if (!sales || sales.length === 0) {
-      console.log('No sales found');
       setSalesGroups([]);
       return;
     }
-
-    console.log('Sales retrieved:', sales);
 
     const activeSales = sales.filter(sale => sale.is_canceled === false);
 
     if (activeSales.length === 0) {
-      console.log('No active sales found (is_canceled = false)');
       setSalesGroups([]);
       return;
     }
@@ -154,11 +157,52 @@ function POS() {
     }, {});
 
     const groupedSalesArray = Object.values(groupedSales);
-    console.log('Grouped sales:', groupedSalesArray);
     setSalesGroups(groupedSalesArray);
-  };
+  }, []);
 
-  const addToCart = () => {
+  const fetchSalesGroups = useCallback(async () => {
+    const { data: sales, error } = await supabase
+      .from('sales')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(20);
+
+    if (error) {
+      if (error.code === '42703') {
+        console.warn('created_at column does not exist, falling back to ordering by id');
+        const { data: fallbackSales, error: fallbackError } = await supabase
+          .from('sales')
+          .select('*')
+          .order('id', { ascending: false })
+          .limit(20);
+
+        if (fallbackError) {
+          console.error('Error fetching sales (fallback):', fallbackError);
+          alert(`Error al recuperar las ventas (fallback): ${fallbackError.message} (Código: ${fallbackError.code})`);
+          setSalesGroups([]);
+          return;
+        }
+
+        handleSalesData(fallbackSales);
+        return;
+      }
+
+      console.error('Error fetching sales:', error);
+      alert(`Error al recuperar las ventas: ${error.message} (Código: ${error.code})`);
+      setSalesGroups([]);
+      return;
+    }
+
+    handleSalesData(sales);
+  }, [handleSalesData]);
+
+  useEffect(() => {
+    fetchProducts();
+    fetchExchangeRate();
+    fetchSalesGroups();
+  }, [fetchProducts, fetchExchangeRate, fetchSalesGroups]);
+
+  const addToCart = useCallback(() => {
     if (!selectedProduct || !quantity) {
       alert('Por favor, selecciona un producto y una cantidad');
       return;
@@ -168,14 +212,37 @@ function POS() {
       alert('No hay suficiente stock disponible');
       return;
     }
-    const priceInBs = selectedProduct.price * exchangeRate;
-    const total = priceInBs * quantityToAdd;
-    setCart([...cart, { ...selectedProduct, quantity: quantityToAdd, priceInBs, total }]);
+
+    const priceWithIvaUsd = selectedProduct.price;
+    const priceWithoutIvaUsd = priceWithIvaUsd / (1 + IVA_RATE);
+    const ivaUsd = priceWithIvaUsd - priceWithoutIvaUsd;
+
+    const priceWithoutIvaBs = priceWithoutIvaUsd * exchangeRate;
+    const ivaBs = ivaUsd * exchangeRate;
+    const priceWithIvaBs = priceWithIvaUsd * exchangeRate;
+
+    const subtotalBs = priceWithoutIvaBs * quantityToAdd;
+    const ivaTotalBs = ivaBs * quantityToAdd;
+    const totalBs = priceWithIvaBs * quantityToAdd;
+
+    setCart([
+      ...cart,
+      {
+        ...selectedProduct,
+        quantity: quantityToAdd,
+        priceWithoutIvaBs,
+        ivaBs,
+        priceWithIvaBs,
+        subtotalBs,
+        ivaTotalBs,
+        totalBs,
+      },
+    ]);
     setSelectedProduct(null);
     setQuantity('');
-  };
+  }, [selectedProduct, quantity, exchangeRate, cart]);
 
-  const registerSale = async () => {
+  const registerSale = useCallback(async () => {
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     if (userError || !user) {
       console.error('Error getting user:', userError);
@@ -209,7 +276,7 @@ function POS() {
           {
             product_id: item.id,
             quantity: item.quantity,
-            total: item.total,
+            total: item.totalBs,
             user_id: userId,
             sale_group_id: saleGroupId,
             is_canceled: false,
@@ -234,9 +301,10 @@ function POS() {
         }
       }
 
-      const subtotal = cart.reduce((sum, item) => sum + item.total, 0);
-      const tax = subtotal * 0.16;
-      const total = subtotal + tax;
+      const subtotalBs = cart.reduce((sum, item) => sum + item.subtotalBs, 0);
+      const taxBs = cart.reduce((sum, item) => sum + item.ivaTotalBs, 0);
+      const totalBs = cart.reduce((sum, item) => sum + item.totalBs, 0);
+
       const saleNumber = Math.floor(Math.random() * 10000);
       const paymentMethod = 'CONTADO';
 
@@ -250,18 +318,18 @@ function POS() {
         alert('Error: user_id no es válido');
         return;
       }
-      if (typeof subtotal !== 'number' || isNaN(subtotal)) {
-        console.error('Invalid subtotal:', subtotal);
+      if (typeof subtotalBs !== 'number' || isNaN(subtotalBs)) {
+        console.error('Invalid subtotal:', subtotalBs);
         alert('Error: subtotal no es un número válido');
         return;
       }
-      if (typeof tax !== 'number' || isNaN(tax)) {
-        console.error('Invalid tax:', tax);
+      if (typeof taxBs !== 'number' || isNaN(taxBs)) {
+        console.error('Invalid tax:', taxBs);
         alert('Error: tax no es un número válido');
         return;
       }
-      if (typeof total !== 'number' || isNaN(total)) {
-        console.error('Invalid total:', total);
+      if (typeof totalBs !== 'number' || isNaN(totalBs)) {
+        console.error('Invalid total:', totalBs);
         alert('Error: total no es un número válido');
         return;
       }
@@ -279,13 +347,12 @@ function POS() {
       const saleGroupData = {
         sale_group_id: saleGroupId,
         user_id: userId,
-        subtotal,
-        tax,
-        total,
+        subtotal: subtotalBs,
+        tax: taxBs,
+        total: totalBs,
         sale_number: saleNumber,
         payment_method: paymentMethod,
       };
-      console.log('Inserting into sale_groups:', saleGroupData);
 
       const { error: insertGroupError } = await supabase.from('sale_groups').insert([saleGroupData]);
 
@@ -299,9 +366,9 @@ function POS() {
 
       setSaleDetails({
         items: cart,
-        subtotal,
-        tax,
-        total,
+        subtotal: subtotalBs,
+        tax: taxBs,
+        total: totalBs,
         date: new Date().toLocaleString(),
         saleNumber,
         paymentMethod,
@@ -311,13 +378,15 @@ function POS() {
       setCart([]);
       fetchProducts();
       fetchSalesGroups();
+      fetchDailySales();
+      fetchTotalProducts();
     } catch (error) {
       console.error('Unexpected error in registerSale:', error);
       alert(`Error inesperado al registrar la venta: ${error.message || 'Error desconocido'}`);
     }
-  };
+  }, [cart, fetchProducts, fetchSalesGroups, fetchDailySales, fetchTotalProducts]);
 
-  const reprintTicket = async (saleGroup) => {
+  const reprintTicket = useCallback(async (saleGroup) => {
     const { data: saleGroupDetails, error } = await supabase
       .from('sale_groups')
       .select('*')
@@ -341,9 +410,9 @@ function POS() {
     });
 
     setOpenTicket(true);
-  };
+  }, []);
 
-  const cancelSaleGroup = async () => {
+  const cancelSaleGroup = useCallback(async () => {
     if (!selectedSaleGroup) return;
 
     const { error: cancelError } = await supabase
@@ -376,9 +445,11 @@ function POS() {
     setSelectedSaleGroup(null);
     fetchSalesGroups();
     fetchProducts();
-  };
+    fetchDailySales();
+    fetchTotalProducts();
+  }, [selectedSaleGroup, products, fetchSalesGroups, fetchProducts, fetchDailySales, fetchTotalProducts]);
 
-  const handlePrint = () => {
+  const handlePrint = useCallback(() => {
     console.log('Printing ticket using window.print...');
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
@@ -393,12 +464,12 @@ function POS() {
           <style>
             body {
               font-family: monospace;
-              font-size: 10px;
+              font-size: ${isMobile ? '8px' : '10px'};
               line-height: 1.2;
-              width: 80mm; /* Ancho estándar para impresoras térmicas de 80mm */
+              width: 80mm;
               margin: 0 auto;
               text-align: center;
-              padding: 5mm;
+              padding: ${isMobile ? '2mm' : '5mm'};
               box-sizing: border-box;
             }
             .divider {
@@ -412,10 +483,9 @@ function POS() {
               margin-bottom: 2px;
             }
             .total {
-              font-size: 12px;
+              font-size: ${isMobile ? '10px' : '12px'};
               font-weight: bold;
             }
-            /* Ajustes para impresoras térmicas de 58mm */
             @media print and (max-width: 58mm) {
               body {
                 font-size: 8px;
@@ -426,7 +496,6 @@ function POS() {
                 font-size: 10px;
               }
             }
-            /* Ajustes para impresoras de escritorio o PDF */
             @media print and (min-width: 80mm) {
               body {
                 font-size: 12px;
@@ -437,7 +506,6 @@ function POS() {
                 font-size: 14px;
               }
             }
-            /* Evitar saltos de página dentro del ticket */
             @media print {
               body {
                 page-break-inside: avoid;
@@ -446,7 +514,7 @@ function POS() {
           </style>
         </head>
         <body onload="window.print(); window.close()">
-          <h1 style="font-size: 12px; font-weight: bold; margin: 0;">Mi Tienda</h1>
+          <h1 style="font-size: ${isMobile ? '10px' : '12px'}; font-weight: bold; margin: 0;">Mi Tienda</h1>
           <p style="margin: 2px 0;">Nota de Entrega #${saleDetails?.saleNumber}</p>
           <p style="margin: 2px 0;">Fecha: ${saleDetails?.date}</p>
           <p style="margin: 2px 0 5px;">${saleDetails?.paymentMethod}</p>
@@ -458,10 +526,10 @@ function POS() {
           <div style="text-align: left; margin-bottom: 5px;">
             ${saleDetails?.items
               .map(
-                (item, index) =>
-                  `<div class="item" key=${index}>
+                (item) =>
+                  `<div class="item">
                     <span style="flex: 1;">${item.name} x ${item.quantity}</span>
-                    <span>Bs. ${item.total.toFixed(2)}</span>
+                    <span>Bs. ${item.totalBs.toFixed(2)}</span>
                   </div>`
               )
               .join('')}
@@ -487,120 +555,141 @@ function POS() {
     printWindow.document.write(content);
     printWindow.document.close();
     printWindow.focus();
-  };
+  }, [saleDetails, isMobile]);
 
   return (
     <>
       <Navbar />
-      <Container sx={{ mt: 4 }}>
-        <Typography variant="h1" gutterBottom>
-          Punto de Venta
-        </Typography>
-        <Box sx={{ display: 'flex', gap: 2, mb: 4 }}>
-          <Autocomplete
-            options={products}
-            getOptionLabel={(option) => option.name}
-            value={selectedProduct}
-            onChange={(event, newValue) => setSelectedProduct(newValue)}
-            renderInput={(params) => <TextField {...params} label="Producto" variant="outlined" size="small" />}
-            sx={{ width: 300 }}
-          />
-          <TextField
-            label="Cantidad"
-            value={quantity}
-            onChange={(e) => setQuantity(e.target.value)}
-            variant="outlined"
-            size="small"
-            type="number"
-          />
-          <Button variant="contained" color="primary" onClick={addToCart}>
-            Añadir al Carrito
-          </Button>
-        </Box>
-        <TableContainer component={Paper}>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Producto</TableCell>
-                <TableCell>Cantidad</TableCell>
-                <TableCell>Precio Unitario (Bs.)</TableCell>
-                <TableCell>Total (Bs.)</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {cart.map((item, index) => (
-                <TableRow key={index}>
-                  <TableCell>{item.name}</TableCell>
-                  <TableCell>{item.quantity}</TableCell>
-                  <TableCell>{item.priceInBs.toFixed(2)}</TableCell>
-                  <TableCell>{item.total.toFixed(2)}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
-        {cart.length > 0 && (
-          <Box sx={{ mt: 2 }}>
-            <Button variant="contained" color="primary" onClick={registerSale} startIcon={<ReceiptIcon />}>
-              Registrar Venta y Generar Ticket
+      <Box
+        component="main"
+        sx={{
+          flexGrow: 1,
+          p: 3,
+          ml: { sm: '240px' },
+          mt: { xs: 2, sm: 0 },
+          width: { xs: '100%', sm: 'calc(100% - 240px)' },
+        }}
+      >
+        <Container maxWidth="lg">
+          <Typography
+            variant="h1"
+            gutterBottom
+            sx={{ fontSize: { xs: '1.5rem', sm: '2rem', md: '2.5rem' } }}
+          >
+            Punto de Venta
+          </Typography>
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: { xs: 'column', sm: 'row' },
+              gap: 2,
+              mb: 4,
+            }}
+          >
+            <Autocomplete
+              options={products}
+              getOptionLabel={(option) => option.name}
+              value={selectedProduct}
+              onChange={(event, newValue) => setSelectedProduct(newValue)}
+              renderInput={(params) => (
+                <TextField {...params} label="Producto" variant="outlined" size="small" />
+              )}
+              sx={{ width: { xs: '100%', sm: 300 } }}
+            />
+            <TextField
+              label="Cantidad"
+              value={quantity}
+              onChange={(e) => setQuantity(e.target.value)}
+              variant="outlined"
+              size="small"
+              type="number"
+              sx={{ width: { xs: '100%', sm: 'auto' } }}
+            />
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={addToCart}
+              sx={{ width: { xs: '100%', sm: 'auto' } }}
+            >
+              Añadir al Carrito
             </Button>
           </Box>
-        )}
-
-        <Typography variant="h2" sx={{ mt: 4, mb: 2, fontSize: '1.8rem', fontWeight: 500 }}>
-          Ventas Recientes
-        </Typography>
-        <TableContainer component={Paper}>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell sx={{ fontWeight: 600 }}>Número de Venta</TableCell>
-                <TableCell sx={{ fontWeight: 600 }}>Fecha</TableCell>
-                <TableCell sx={{ fontWeight: 600 }}>Total (Bs.)</TableCell>
-                <TableCell sx={{ fontWeight: 600 }}>Acciones</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {salesGroups.length === 0 ? (
+          <TableContainer component={Paper}>
+            <Table size={isMobile ? 'small' : 'medium'}>
+              <TableHead>
                 <TableRow>
-                  <TableCell colSpan={4} sx={{ textAlign: 'center' }}>
-                    No hay ventas recientes.
-                  </TableCell>
+                  <TableCell>Producto</TableCell>
+                  <TableCell>Cantidad</TableCell>
+                  <TableCell>Precio Unitario (Bs.)</TableCell>
+                  <TableCell>Total (Bs.)</TableCell>
                 </TableRow>
-              ) : (
-                salesGroups.map((group, index) => (
-                  <TableRow key={group.sale_group_id}>
-                    <TableCell>Venta #{index + 1}</TableCell>
-                    <TableCell>{new Date(group.date).toLocaleString()}</TableCell>
-                    <TableCell>{group.total.toFixed(2)}</TableCell>
-                    <TableCell>
-                      <Tooltip title="Reimprimir Ticket">
-                        <IconButton
-                          color="primary"
-                          onClick={() => reprintTicket(group)}
-                        >
-                          <PrintIcon />
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title="Anular Venta">
-                        <IconButton
-                          color="secondary"
-                          onClick={() => {
-                            setSelectedSaleGroup(group);
-                            setOpenCancelDialog(true);
-                          }}
-                        >
-                          <CancelIcon />
-                        </IconButton>
-                      </Tooltip>
+              </TableHead>
+              <TableBody>
+                {cart.map((item, index) => (
+                  <CartRow key={index} item={item} index={index} />
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+          {cart.length > 0 && (
+            <Box sx={{ mt: 2, display: 'flex', justifyContent: 'center' }}>
+              <Button
+                variant="contained"
+                color="primary"
+                onClick={registerSale}
+                startIcon={<ReceiptIcon />}
+                sx={{ width: { xs: '100%', sm: 'auto' } }}
+              >
+                Registrar Venta y Generar Ticket
+              </Button>
+            </Box>
+          )}
+
+          <Typography
+            variant="h2"
+            sx={{
+              mt: 4,
+              mb: 2,
+              fontSize: { xs: '1.2rem', sm: '1.5rem', md: '1.8rem' },
+              fontWeight: 500,
+            }}
+          >
+            Ventas Recientes
+          </Typography>
+          <TableContainer component={Paper}>
+            <Table size={isMobile ? 'small' : 'medium'}>
+              <TableHead>
+                <TableRow>
+                  <TableCell sx={{ fontWeight: 600 }}>Número de Venta</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>Fecha</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>Total (Bs.)</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>Acciones</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {salesGroups.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={4} sx={{ textAlign: 'center' }}>
+                      No hay ventas recientes.
                     </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      </Container>
+                ) : (
+                  salesGroups.map((group, index) => (
+                    <SaleRow
+                      key={group.sale_group_id}
+                      group={group}
+                      index={index}
+                      reprintTicket={reprintTicket}
+                      setSelectedSaleGroup={setSelectedSaleGroup}
+                      setOpenCancelDialog={setOpenCancelDialog}
+                    />
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </Container>
+      </Box>
 
       <Modal open={openTicket} onClose={() => setOpenTicket(false)}>
         <Box
@@ -613,8 +702,10 @@ function POS() {
             boxShadow: 24,
             p: 2,
             borderRadius: '8px',
-            maxWidth: '80mm',
+            maxWidth: { xs: '90vw', sm: '80mm' },
             width: '100%',
+            maxHeight: '80vh',
+            overflowY: 'auto',
           }}
         >
           <Box
@@ -622,55 +713,70 @@ function POS() {
             sx={{
               p: 1,
               fontFamily: 'monospace',
-              fontSize: '10px',
+              fontSize: { xs: '8px', sm: '10px' },
               lineHeight: 1.2,
               width: '80mm',
               textAlign: 'center',
+              mx: 'auto',
             }}
           >
-            <Typography variant="h6" sx={{ fontSize: '12px', fontWeight: 'bold' }}>
+            <Typography variant="h6" sx={{ fontSize: { xs: '10px', sm: '12px' }, fontWeight: 'bold' }}>
               Mi Tienda
             </Typography>
-            <Typography sx={{ fontSize: '10px' }}>
+            <Typography sx={{ fontSize: { xs: '8px', sm: '10px' } }}>
               Nota de Entrega #{saleDetails?.saleNumber}
             </Typography>
-            <Typography sx={{ fontSize: '10px' }}>
+            <Typography sx={{ fontSize: { xs: '8px', sm: '10px' } }}>
               Fecha: {saleDetails?.date}
             </Typography>
-            <Typography sx={{ fontSize: '10px', mb: 1 }}>
+            <Typography sx={{ fontSize: { xs: '8px', sm: '10px' }, mb: 1 }}>
               {saleDetails?.paymentMethod}
             </Typography>
             <Divider sx={{ borderStyle: 'dashed', my: 0.5 }} />
-            <Typography sx={{ fontSize: '10px', mb: 1, textAlign: 'left' }}>
+            <Typography sx={{ fontSize: { xs: '8px', sm: '10px' }, mb: 1, textAlign: 'left' }}>
               Operador: {supabase.auth.getUser()?.email || 'Usuario'}
             </Typography>
             <Divider sx={{ borderStyle: 'dashed', my: 0.5 }} />
             <Box sx={{ mb: 1, textAlign: 'left' }}>
               {saleDetails?.items.map((item, index) => (
-                <Box key={index} sx={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px' }}>
+                <Box
+                  key={index}
+                  sx={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    fontSize: { xs: '8px', sm: '10px' },
+                  }}
+                >
                   <Typography sx={{ flex: 1 }}>
                     {item.name} x {item.quantity}
                   </Typography>
-                  <Typography>Bs. {item.total.toFixed(2)}</Typography>
+                  <Typography>Bs. {item.totalBs.toFixed(2)}</Typography>
                 </Box>
               ))}
             </Box>
             <Divider sx={{ borderStyle: 'dashed', my: 0.5 }} />
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px' }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', fontSize: { xs: '8px', sm: '10px' } }}>
               <Typography>SUBTOTAL Bs.</Typography>
               <Typography>Bs. {saleDetails?.subtotal.toFixed(2)}</Typography>
             </Box>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px' }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', fontSize: { xs: '8px', sm: '10px' } }}>
               <Typography>IVA 16% Bs.</Typography>
               <Typography>Bs. {saleDetails?.tax.toFixed(2)}</Typography>
             </Box>
             <Divider sx={{ borderStyle: 'dashed', my: 0.5 }} />
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', fontWeight: 'bold' }}>
+            <Box
+              sx={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                fontSize: { xs: '10px', sm: '12px' },
+                fontWeight: 'bold',
+              }}
+            >
               <Typography>TOTAL Bs.</Typography>
               <Typography>Bs. {saleDetails?.total.toFixed(2)}</Typography>
             </Box>
           </Box>
-          <Box sx={{ mt: 1, display: 'flex', gap: 1, justifyContent: 'center' }}>
+          <Box sx={{ mt: 1, display: 'flex', gap: 1, justifyContent: 'center', flexWrap: 'wrap' }}>
             <Button variant="contained" color="primary" onClick={handlePrint}>
               Imprimir Ticket
             </Button>
