@@ -25,7 +25,6 @@ import {
   DialogContent,
   DialogActions,
 } from '@mui/material';
-import { useReactToPrint } from 'react-to-print';
 import ReceiptIcon from '@mui/icons-material/Receipt';
 import CancelIcon from '@mui/icons-material/Cancel';
 import PrintIcon from '@mui/icons-material/Print';
@@ -241,21 +240,60 @@ function POS() {
       const saleNumber = Math.floor(Math.random() * 10000);
       const paymentMethod = 'CONTADO';
 
-      const { error: insertGroupError } = await supabase.from('sale_groups').insert([
-        {
-          sale_group_id: saleGroupId,
-          user_id: userId,
-          subtotal,
-          tax,
-          total,
-          sale_number: saleNumber,
-          payment_method: paymentMethod,
-        },
-      ]);
+      if (!saleGroupId || typeof saleGroupId !== 'string') {
+        console.error('Invalid sale_group_id:', saleGroupId);
+        alert('Error: sale_group_id no es válido');
+        return;
+      }
+      if (!userId || typeof userId !== 'string') {
+        console.error('Invalid user_id:', userId);
+        alert('Error: user_id no es válido');
+        return;
+      }
+      if (typeof subtotal !== 'number' || isNaN(subtotal)) {
+        console.error('Invalid subtotal:', subtotal);
+        alert('Error: subtotal no es un número válido');
+        return;
+      }
+      if (typeof tax !== 'number' || isNaN(tax)) {
+        console.error('Invalid tax:', tax);
+        alert('Error: tax no es un número válido');
+        return;
+      }
+      if (typeof total !== 'number' || isNaN(total)) {
+        console.error('Invalid total:', total);
+        alert('Error: total no es un número válido');
+        return;
+      }
+      if (!Number.isInteger(saleNumber)) {
+        console.error('Invalid sale_number:', saleNumber);
+        alert('Error: sale_number no es un entero válido');
+        return;
+      }
+      if (!paymentMethod || typeof paymentMethod !== 'string') {
+        console.error('Invalid payment_method:', paymentMethod);
+        alert('Error: payment_method no es válido');
+        return;
+      }
+
+      const saleGroupData = {
+        sale_group_id: saleGroupId,
+        user_id: userId,
+        subtotal,
+        tax,
+        total,
+        sale_number: saleNumber,
+        payment_method: paymentMethod,
+      };
+      console.log('Inserting into sale_groups:', saleGroupData);
+
+      const { error: insertGroupError } = await supabase.from('sale_groups').insert([saleGroupData]);
 
       if (insertGroupError) {
         console.error('Error inserting sale group:', insertGroupError);
-        alert(`Error al registrar los detalles de la venta: ${insertGroupError.message} (Código: ${insertGroupError.code})`);
+        const errorMessage = insertGroupError.message || 'Error desconocido al insertar en sale_groups';
+        const errorCode = insertGroupError.code || 'Desconocido';
+        alert(`Error al registrar los detalles de la venta: ${errorMessage} (Código: ${errorCode})`);
         return;
       }
 
@@ -275,7 +313,7 @@ function POS() {
       fetchSalesGroups();
     } catch (error) {
       console.error('Unexpected error in registerSale:', error);
-      alert(`Error inesperado al registrar la venta: ${error.message}`);
+      alert(`Error inesperado al registrar la venta: ${error.message || 'Error desconocido'}`);
     }
   };
 
@@ -340,19 +378,116 @@ function POS() {
     fetchProducts();
   };
 
-  const handlePrint = useReactToPrint({
-    content: () => componentRef.current,
-    onBeforeGetContent: () => {
-      console.log('Preparing to print...');
-    },
-    onAfterPrint: () => {
-      console.log('Print completed.');
-    },
-    onPrintError: (errorLocation, error) => {
-      console.error('Print error:', errorLocation, error);
-      alert('Error al intentar imprimir el ticket. Por favor, verifica tu impresora o navegador.');
-    },
-  });
+  const handlePrint = () => {
+    console.log('Printing ticket using window.print...');
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      alert('No se pudo abrir la ventana de impresión. Por favor, permite las ventanas emergentes para este sitio.');
+      return;
+    }
+
+    const content = `
+      <html>
+        <head>
+          <title>Ticket de Venta</title>
+          <style>
+            body {
+              font-family: monospace;
+              font-size: 10px;
+              line-height: 1.2;
+              width: 80mm; /* Ancho estándar para impresoras térmicas de 80mm */
+              margin: 0 auto;
+              text-align: center;
+              padding: 5mm;
+              box-sizing: border-box;
+            }
+            .divider {
+              border-top: 1px dashed #000;
+              margin: 5px 0;
+            }
+            .item {
+              display: flex;
+              justify-content: space-between;
+              text-align: left;
+              margin-bottom: 2px;
+            }
+            .total {
+              font-size: 12px;
+              font-weight: bold;
+            }
+            /* Ajustes para impresoras térmicas de 58mm */
+            @media print and (max-width: 58mm) {
+              body {
+                font-size: 8px;
+                width: 58mm;
+                padding: 2mm;
+              }
+              .total {
+                font-size: 10px;
+              }
+            }
+            /* Ajustes para impresoras de escritorio o PDF */
+            @media print and (min-width: 80mm) {
+              body {
+                font-size: 12px;
+                width: 80mm;
+                padding: 10mm;
+              }
+              .total {
+                font-size: 14px;
+              }
+            }
+            /* Evitar saltos de página dentro del ticket */
+            @media print {
+              body {
+                page-break-inside: avoid;
+              }
+            }
+          </style>
+        </head>
+        <body onload="window.print(); window.close()">
+          <h1 style="font-size: 12px; font-weight: bold; margin: 0;">Mi Tienda</h1>
+          <p style="margin: 2px 0;">Nota de Entrega #${saleDetails?.saleNumber}</p>
+          <p style="margin: 2px 0;">Fecha: ${saleDetails?.date}</p>
+          <p style="margin: 2px 0 5px;">${saleDetails?.paymentMethod}</p>
+          <div class="divider"></div>
+          <p style="text-align: left; margin: 5px 0;">Operador: ${
+            supabase.auth.getUser()?.email || 'Usuario'
+          }</p>
+          <div class="divider"></div>
+          <div style="text-align: left; margin-bottom: 5px;">
+            ${saleDetails?.items
+              .map(
+                (item, index) =>
+                  `<div class="item" key=${index}>
+                    <span style="flex: 1;">${item.name} x ${item.quantity}</span>
+                    <span>Bs. ${item.total.toFixed(2)}</span>
+                  </div>`
+              )
+              .join('')}
+          </div>
+          <div class="divider"></div>
+          <div style="display: flex; justify-content: space-between; margin: 2px 0;">
+            <span>SUBTOTAL Bs.</span>
+            <span>Bs. ${saleDetails?.subtotal.toFixed(2)}</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; margin: 2px 0;">
+            <span>IVA 16% Bs.</span>
+            <span>Bs. ${saleDetails?.tax.toFixed(2)}</span>
+          </div>
+          <div class="divider"></div>
+          <div style="display: flex; justify-content: space-between;" class="total">
+            <span>TOTAL Bs.</span>
+            <span>Bs. ${saleDetails?.total.toFixed(2)}</span>
+          </div>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.write(content);
+    printWindow.document.close();
+    printWindow.focus();
+  };
 
   return (
     <>
@@ -478,7 +613,7 @@ function POS() {
             boxShadow: 24,
             p: 2,
             borderRadius: '8px',
-            maxWidth: '80mm', // Ancho típico de una impresora térmica (80mm)
+            maxWidth: '80mm',
             width: '100%',
           }}
         >
@@ -487,7 +622,7 @@ function POS() {
             sx={{
               p: 1,
               fontFamily: 'monospace',
-              fontSize: '10px', // Tamaño de fuente más pequeño para impresoras térmicas
+              fontSize: '10px',
               lineHeight: 1.2,
               width: '80mm',
               textAlign: 'center',
