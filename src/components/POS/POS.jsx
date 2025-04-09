@@ -28,6 +28,7 @@ import {
 import { useReactToPrint } from 'react-to-print';
 import ReceiptIcon from '@mui/icons-material/Receipt';
 import CancelIcon from '@mui/icons-material/Cancel';
+import PrintIcon from '@mui/icons-material/Print';
 import { v4 as uuidv4 } from 'uuid'; // Para generar un sale_group_id único
 
 function POS() {
@@ -90,12 +91,34 @@ function POS() {
       .order('created_at', { ascending: false });
 
     if (error) {
+      if (error.code === '42703') {
+        console.warn('created_at column does not exist, falling back to ordering by id');
+        const { data: fallbackSales, error: fallbackError } = await supabase
+          .from('sales')
+          .select('*')
+          .order('id', { ascending: false });
+
+        if (fallbackError) {
+          console.error('Error fetching sales (fallback):', fallbackError);
+          alert(`Error al recuperar las ventas (fallback): ${fallbackError.message} (Código: ${fallbackError.code})`);
+          setSalesGroups([]);
+          return;
+        }
+
+        handleSalesData(fallbackSales);
+        return;
+      }
+
       console.error('Error fetching sales:', error);
       alert(`Error al recuperar las ventas: ${error.message} (Código: ${error.code})`);
       setSalesGroups([]);
       return;
     }
 
+    handleSalesData(sales);
+  };
+
+  const handleSalesData = (sales) => {
     if (!sales || sales.length === 0) {
       console.log('No sales found');
       setSalesGroups([]);
@@ -104,7 +127,6 @@ function POS() {
 
     console.log('Sales retrieved:', sales);
 
-    // Filtrar ventas no anuladas en el cliente
     const activeSales = sales.filter(sale => sale.is_canceled === false);
 
     if (activeSales.length === 0) {
@@ -113,19 +135,18 @@ function POS() {
       return;
     }
 
-    // Agrupar las ventas por sale_group_id
     const groupedSales = activeSales.reduce((acc, sale) => {
       const groupId = sale.sale_group_id;
       if (!groupId) {
         console.warn('Sale without sale_group_id:', sale);
-        return acc; // Ignorar ventas sin sale_group_id
+        return acc;
       }
       if (!acc[groupId]) {
         acc[groupId] = {
           sale_group_id: groupId,
           items: [],
           total: 0,
-          date: sale.created_at,
+          date: sale.created_at || new Date(sale.id).toISOString(),
         };
       }
       acc[groupId].items.push(sale);
@@ -148,7 +169,7 @@ function POS() {
       alert('No hay suficiente stock disponible');
       return;
     }
-    const priceInBs = selectedProduct.price * exchangeRate; // Convertir el precio a bolívares
+    const priceInBs = selectedProduct.price * exchangeRate;
     const total = priceInBs * quantityToAdd;
     setCart([...cart, { ...selectedProduct, quantity: quantityToAdd, priceInBs, total }]);
     setSelectedProduct(null);
@@ -163,79 +184,130 @@ function POS() {
       return;
     }
     const userId = user.id;
-    const saleGroupId = uuidv4(); // Generar un sale_group_id único para esta venta
+    const saleGroupId = uuidv4();
 
-    for (const item of cart) {
-      const { data: product, error: productError } = await supabase
-        .from('products')
-        .select('quantity')
-        .eq('id', item.id)
-        .single();
+    try {
+      for (const item of cart) {
+        const { data: product, error: productError } = await supabase
+          .from('products')
+          .select('quantity')
+          .eq('id', item.id)
+          .single();
 
-      if (productError || !product) {
-        console.error('Error fetching product:', productError);
-        alert(`Error al obtener el producto con ID ${item.id}: ${productError?.message || 'Producto no encontrado'}`);
-        return;
+        if (productError || !product) {
+          console.error('Error fetching product:', productError);
+          alert(`Error al obtener el producto con ID ${item.id}: ${productError?.message || 'Producto no encontrado'}`);
+          return;
+        }
+
+        const newQuantity = product.quantity - item.quantity;
+        if (newQuantity < 0) {
+          alert(`No hay suficiente stock para el producto ${item.name}`);
+          return;
+        }
+
+        const { error: insertError } = await supabase.from('sales').insert([
+          {
+            product_id: item.id,
+            quantity: item.quantity,
+            total: item.total,
+            user_id: userId,
+            sale_group_id: saleGroupId,
+            is_canceled: false,
+          },
+        ]);
+
+        if (insertError) {
+          console.error('Error inserting sale:', insertError);
+          alert(`Error al registrar la venta: ${insertError.message} (Código: ${insertError.code})`);
+          return;
+        }
+
+        const { error: updateError } = await supabase
+          .from('products')
+          .update({ quantity: newQuantity })
+          .eq('id', item.id);
+
+        if (updateError) {
+          console.error('Error updating product:', updateError);
+          alert(`Error al actualizar el inventario: ${updateError.message} (Código: ${updateError.code})`);
+          return;
+        }
       }
 
-      const newQuantity = product.quantity - item.quantity;
-      if (newQuantity < 0) {
-        alert(`No hay suficiente stock para el producto ${item.name}`);
-        return;
-      }
+      const subtotal = cart.reduce((sum, item) => sum + item.total, 0);
+      const tax = subtotal * 0.16;
+      const total = subtotal + tax;
+      const saleNumber = Math.floor(Math.random() * 10000);
+      const paymentMethod = 'CONTADO';
 
-      const { error: insertError } = await supabase.from('sales').insert([
+      const { error: insertGroupError } = await supabase.from('sale_groups').insert([
         {
-          product_id: item.id,
-          quantity: item.quantity,
-          total: item.total,
-          user_id: userId,
           sale_group_id: saleGroupId,
-          is_canceled: false,
+          user_id: userId,
+          subtotal,
+          tax,
+          total,
+          sale_number: saleNumber,
+          payment_method: paymentMethod,
         },
       ]);
 
-      if (insertError) {
-        console.error('Error inserting sale:', insertError);
-        alert(`Error al registrar la venta: ${insertError.message} (Código: ${insertError.code})`);
+      if (insertGroupError) {
+        console.error('Error inserting sale group:', insertGroupError);
+        alert(`Error al registrar los detalles de la venta: ${insertGroupError.message} (Código: ${insertGroupError.code})`);
         return;
       }
 
-      const { error: updateError } = await supabase
-        .from('products')
-        .update({ quantity: newQuantity })
-        .eq('id', item.id);
+      setSaleDetails({
+        items: cart,
+        subtotal,
+        tax,
+        total,
+        date: new Date().toLocaleString(),
+        saleNumber,
+        paymentMethod,
+      });
 
-      if (updateError) {
-        console.error('Error updating product:', updateError);
-        alert(`Error al actualizar el inventario: ${updateError.message} (Código: ${updateError.code})`);
-        return;
-      }
+      setOpenTicket(true);
+      setCart([]);
+      fetchProducts();
+      fetchSalesGroups();
+    } catch (error) {
+      console.error('Unexpected error in registerSale:', error);
+      alert(`Error inesperado al registrar la venta: ${error.message}`);
+    }
+  };
+
+  const reprintTicket = async (saleGroup) => {
+    const { data: saleGroupDetails, error } = await supabase
+      .from('sale_groups')
+      .select('*')
+      .eq('sale_group_id', saleGroup.sale_group_id)
+      .single();
+
+    if (error || !saleGroupDetails) {
+      console.error('Error fetching sale group details:', error);
+      alert(`Error al recuperar los detalles de la venta: ${error?.message || 'Detalles no encontrados'}`);
+      return;
     }
 
-    const subtotal = cart.reduce((sum, item) => sum + item.total, 0);
-    const tax = subtotal * 0.16;
-    const total = subtotal + tax;
     setSaleDetails({
-      items: cart,
-      subtotal,
-      tax,
-      total,
-      date: new Date().toLocaleString(),
-      saleNumber: Math.floor(Math.random() * 10000),
-      paymentMethod: 'CONTADO',
+      items: saleGroup.items,
+      subtotal: saleGroupDetails.subtotal,
+      tax: saleGroupDetails.tax,
+      total: saleGroupDetails.total,
+      date: new Date(saleGroup.date).toLocaleString(),
+      saleNumber: saleGroupDetails.sale_number,
+      paymentMethod: saleGroupDetails.payment_method,
     });
 
     setOpenTicket(true);
-    setCart([]);
-    fetchProducts();
-    fetchSalesGroups();
   };
 
   const cancelSaleGroup = async () => {
     if (!selectedSaleGroup) return;
 
-    // Marcar todas las ventas del grupo como anuladas
     const { error: cancelError } = await supabase
       .from('sales')
       .update({ is_canceled: true })
@@ -246,7 +318,6 @@ function POS() {
       return;
     }
 
-    // Devolver las cantidades al inventario
     for (const item of selectedSaleGroup.items) {
       const product = products.find((p) => p.id === item.product_id);
       if (product) {
@@ -271,6 +342,16 @@ function POS() {
 
   const handlePrint = useReactToPrint({
     content: () => componentRef.current,
+    onBeforeGetContent: () => {
+      console.log('Preparing to print...');
+    },
+    onAfterPrint: () => {
+      console.log('Print completed.');
+    },
+    onPrintError: (errorLocation, error) => {
+      console.error('Print error:', errorLocation, error);
+      alert('Error al intentar imprimir el ticket. Por favor, verifica tu impresora o navegador.');
+    },
   });
 
   return (
@@ -331,7 +412,6 @@ function POS() {
           </Box>
         )}
 
-        {/* Tabla de ventas recientes */}
         <Typography variant="h2" sx={{ mt: 4, mb: 2, fontSize: '1.8rem', fontWeight: 500 }}>
           Ventas Recientes
         </Typography>
@@ -359,6 +439,14 @@ function POS() {
                     <TableCell>{new Date(group.date).toLocaleString()}</TableCell>
                     <TableCell>{group.total.toFixed(2)}</TableCell>
                     <TableCell>
+                      <Tooltip title="Reimprimir Ticket">
+                        <IconButton
+                          color="primary"
+                          onClick={() => reprintTicket(group)}
+                        >
+                          <PrintIcon />
+                        </IconButton>
+                      </Tooltip>
                       <Tooltip title="Anular Venta">
                         <IconButton
                           color="secondary"
@@ -379,7 +467,6 @@ function POS() {
         </TableContainer>
       </Container>
 
-      {/* Modal para el ticket */}
       <Modal open={openTicket} onClose={() => setOpenTicket(false)}>
         <Box
           sx={{
@@ -389,33 +476,43 @@ function POS() {
             transform: 'translate(-50%, -50%)',
             bgcolor: 'background.paper',
             boxShadow: 24,
-            p: 4,
-            borderRadius: '12px',
-            maxWidth: 400,
+            p: 2,
+            borderRadius: '8px',
+            maxWidth: '80mm', // Ancho típico de una impresora térmica (80mm)
             width: '100%',
           }}
         >
-          <Box ref={componentRef} sx={{ p: 2, fontFamily: 'monospace', fontSize: '14px' }}>
-            <Typography variant="h6" align="center">
+          <Box
+            ref={componentRef}
+            sx={{
+              p: 1,
+              fontFamily: 'monospace',
+              fontSize: '10px', // Tamaño de fuente más pequeño para impresoras térmicas
+              lineHeight: 1.2,
+              width: '80mm',
+              textAlign: 'center',
+            }}
+          >
+            <Typography variant="h6" sx={{ fontSize: '12px', fontWeight: 'bold' }}>
               Mi Tienda
             </Typography>
-            <Typography align="center" sx={{ fontSize: '12px' }}>
+            <Typography sx={{ fontSize: '10px' }}>
               Nota de Entrega #{saleDetails?.saleNumber}
             </Typography>
-            <Typography align="center" sx={{ fontSize: '12px' }}>
+            <Typography sx={{ fontSize: '10px' }}>
               Fecha: {saleDetails?.date}
             </Typography>
-            <Typography align="center" sx={{ fontSize: '12px', mb: 2 }}>
+            <Typography sx={{ fontSize: '10px', mb: 1 }}>
               {saleDetails?.paymentMethod}
             </Typography>
-            <Divider sx={{ mb: 1 }} />
-            <Typography sx={{ fontSize: '12px', mb: 1 }}>
+            <Divider sx={{ borderStyle: 'dashed', my: 0.5 }} />
+            <Typography sx={{ fontSize: '10px', mb: 1, textAlign: 'left' }}>
               Operador: {supabase.auth.getUser()?.email || 'Usuario'}
             </Typography>
-            <Divider sx={{ mb: 1 }} />
-            <Box sx={{ mb: 2 }}>
+            <Divider sx={{ borderStyle: 'dashed', my: 0.5 }} />
+            <Box sx={{ mb: 1, textAlign: 'left' }}>
               {saleDetails?.items.map((item, index) => (
-                <Box key={index} sx={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
+                <Box key={index} sx={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px' }}>
                   <Typography sx={{ flex: 1 }}>
                     {item.name} x {item.quantity}
                   </Typography>
@@ -423,22 +520,22 @@ function POS() {
                 </Box>
               ))}
             </Box>
-            <Divider sx={{ mb: 1 }} />
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
+            <Divider sx={{ borderStyle: 'dashed', my: 0.5 }} />
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px' }}>
               <Typography>SUBTOTAL Bs.</Typography>
               <Typography>Bs. {saleDetails?.subtotal.toFixed(2)}</Typography>
             </Box>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px' }}>
               <Typography>IVA 16% Bs.</Typography>
               <Typography>Bs. {saleDetails?.tax.toFixed(2)}</Typography>
             </Box>
-            <Divider sx={{ my: 1 }} />
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', fontWeight: 'bold' }}>
+            <Divider sx={{ borderStyle: 'dashed', my: 0.5 }} />
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', fontWeight: 'bold' }}>
               <Typography>TOTAL Bs.</Typography>
               <Typography>Bs. {saleDetails?.total.toFixed(2)}</Typography>
             </Box>
           </Box>
-          <Box sx={{ mt: 2, display: 'flex', gap: 2, justifyContent: 'center' }}>
+          <Box sx={{ mt: 1, display: 'flex', gap: 1, justifyContent: 'center' }}>
             <Button variant="contained" color="primary" onClick={handlePrint}>
               Imprimir Ticket
             </Button>
@@ -449,7 +546,6 @@ function POS() {
         </Box>
       </Modal>
 
-      {/* Diálogo de confirmación para anular venta */}
       <Dialog open={openCancelDialog} onClose={() => setOpenCancelDialog(false)}>
         <DialogTitle>Confirmar Anulación</DialogTitle>
         <DialogContent>
