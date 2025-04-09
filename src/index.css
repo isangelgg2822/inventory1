@@ -1,0 +1,10 @@
+/* src/index.css */
+body {
+  font-family: Arial, sans-serif;
+}
+@media (max-width: 600px) {
+  input, button {
+    width: 100%;
+    margin: 5px 0;
+  }
+}
