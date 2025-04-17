@@ -7,7 +7,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import Home from './components/Home';
 import PointOfSale from './components/POS/POS';
 import Settings from './components/Settings/Settings';
-import Inventory from './components/inventory/Inventory';
+import Inventory from './components/Inventory/Inventory';
 import Reports from './components/Reports/Reports';
 import Navbar from './components/Navbar';
 import TopBar from './components/Topbar';
