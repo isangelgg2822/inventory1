@@ -1,4 +1,3 @@
-// src/components/Inventory/Inventory.jsx
 import { useState, useEffect } from 'react';
 import { supabase } from '../../supabase';
 import Navbar from '../Navbar';
@@ -23,23 +22,36 @@ import {
   DialogContent,
   DialogActions,
   InputAdornment,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
 } from '@mui/material';
 import { Delete, Edit, Search, Clear } from '@mui/icons-material';
 import AddIcon from '@mui/icons-material/Add';
 
 function Inventory() {
   const [products, setProducts] = useState([]);
-  const [filteredProducts, setFilteredProducts] = useState([]); // Lista filtrada de productos
-  const [searchTerm, setSearchTerm] = useState(''); // Término de búsqueda
+  const [filteredProducts, setFilteredProducts] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
   const [name, setName] = useState('');
   const [quantity, setQuantity] = useState('');
   const [price, setPrice] = useState('');
+  const [category, setCategory] = useState('');
   const [openEditModal, setOpenEditModal] = useState(false);
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [editName, setEditName] = useState('');
   const [editQuantity, setEditQuantity] = useState('');
   const [editPrice, setEditPrice] = useState('');
+  const [editCategory, setEditCategory] = useState('');
+
+  const categories = [
+    '',
+    'Alimentos',
+    'Bebidas',
+    'Hogar',
+  ];
 
   useEffect(() => {
     fetchProducts();
@@ -52,13 +64,12 @@ function Inventory() {
       return;
     }
     setProducts(data || []);
-    setFilteredProducts(data || []); // Inicialmente, la lista filtrada es igual a la lista completa
+    setFilteredProducts(data || []);
   };
 
-  // Filtrar productos cuando cambia el término de búsqueda
   useEffect(() => {
     if (!searchTerm) {
-      setFilteredProducts(products); // Si no hay término de búsqueda, mostrar todos los productos
+      setFilteredProducts(products);
     } else {
       const filtered = products.filter((product) =>
         product.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -77,7 +88,7 @@ function Inventory() {
 
   const addProduct = async () => {
     if (!name || !quantity || !price) {
-      alert('Por favor, completa todos los campos');
+      alert('Por favor, completa todos los campos obligatorios (Nombre, Cantidad, Precio)');
       return;
     }
     const { data: { user } } = await supabase.auth.getUser();
@@ -87,7 +98,13 @@ function Inventory() {
     }
     const userId = user.id;
     const { error } = await supabase.from('products').insert([
-      { name, quantity: parseInt(quantity), price: parseFloat(price), user_id: userId },
+      {
+        name,
+        quantity: parseInt(quantity),
+        price: parseFloat(price),
+        category: category || null,
+        user_id: userId,
+      },
     ]);
     if (error) {
       console.error('Error adding product:', error);
@@ -98,6 +115,7 @@ function Inventory() {
     setName('');
     setQuantity('');
     setPrice('');
+    setCategory('');
   };
 
   const deleteProduct = async () => {
@@ -121,12 +139,13 @@ function Inventory() {
     setEditName(product.name);
     setEditQuantity(product.quantity.toString());
     setEditPrice(product.price.toString());
+    setEditCategory(product.category || '');
     setOpenEditModal(true);
   };
 
   const saveEditProduct = async () => {
     if (!editName || !editQuantity || !editPrice) {
-      alert('Por favor, completa todos los campos');
+      alert('Por favor, completa todos los campos obligatorios (Nombre, Cantidad, Precio)');
       return;
     }
     const { error } = await supabase
@@ -135,6 +154,7 @@ function Inventory() {
         name: editName,
         quantity: parseInt(editQuantity),
         price: parseFloat(editPrice),
+        category: editCategory || null,
       })
       .eq('id', selectedProduct.id);
     if (error) {
@@ -154,46 +174,67 @@ function Inventory() {
         <Typography variant="h1" gutterBottom sx={{ fontSize: '2.5rem', fontWeight: 600 }}>
           Inventario
         </Typography>
-        <Box sx={{ display: 'flex', gap: 3, mb: 4, alignItems: 'center' }}>
-          <TextField
-            label="Nombre del producto"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            variant="outlined"
-            size="medium"
-            sx={{ width: '300px' }}
-          />
-          <TextField
-            label="Cantidad"
-            value={quantity}
-            onChange={(e) => setQuantity(e.target.value)}
-            variant="outlined"
-            size="medium"
-            type="number"
-            sx={{ width: '150px' }}
-          />
-          <TextField
-            label="Precio (USD)"
-            value={price}
-            onChange={(e) => setPrice(e.target.value)}
-            variant="outlined"
-            size="medium"
-            type="number"
-            InputProps={{ startAdornment: '$' }}
-            sx={{ width: '150px' }}
-          />
-          <Button
-            variant="contained"
-            color="primary"
-            onClick={addProduct}
-            startIcon={<AddIcon />}
-            sx={{ py: 1.5, px: 3 }}
-          >
-            Añadir
-          </Button>
+
+        <Box sx={{ mb: 4, backgroundColor: '#f5f5f5', p: 3, borderRadius: '12px', boxShadow: 1 }}>
+          <Typography variant="h6" gutterBottom sx={{ color: '#1976d2', fontWeight: 500 }}>
+            Añadir Producto
+          </Typography>
+          <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
+            <TextField
+              label="Nombre del producto"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              variant="outlined"
+              size="medium"
+              sx={{ width: { xs: '100%', sm: '300px' } }}
+            />
+            <TextField
+              label="Cantidad"
+              value={quantity}
+              onChange={(e) => setQuantity(e.target.value)}
+              variant="outlined"
+              size="medium"
+              type="number"
+              sx={{ width: { xs: '100%', sm: '150px' } }}
+            />
+            <TextField
+              label="Precio (USD)"
+              value={price}
+              onChange={(e) => setPrice(e.target.value)}
+              variant="outlined"
+              size="medium"
+              type="number"
+              InputProps={{ startAdornment: <InputAdornment position="start">$</InputAdornment> }}
+              sx={{ width: { xs: '100%', sm: '150px' } }}
+            />
+            <FormControl variant="outlined" sx={{ width: { xs: '100%', sm: '200px' } }}>
+              <InputLabel id="category-label">Categoría (opcional)</InputLabel>
+              <Select
+                labelId="category-label"
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                label="Categoría (opcional)"
+              >
+                <MenuItem value="">Sin categoría</MenuItem>
+                {categories.filter(cat => cat !== '').map((cat) => (
+                  <MenuItem key={cat} value={cat}>
+                    {cat}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={addProduct}
+              startIcon={<AddIcon />}
+              sx={{ py: 1.5, px: 3, width: { xs: '100%', sm: 'auto' } }}
+            >
+              Añadir
+            </Button>
+          </Box>
         </Box>
 
-        {/* Campo de búsqueda */}
         <Box sx={{ mb: 3, display: 'flex', justifyContent: 'flex-end' }}>
           <TextField
             label="Buscar producto"
@@ -201,17 +242,17 @@ function Inventory() {
             onChange={handleSearchChange}
             variant="outlined"
             size="medium"
-            sx={{ width: '300px' }}
+            sx={{ width: { xs: '100%', sm: '300px' }, backgroundColor: '#fff', borderRadius: '8px' }}
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
-                  <Search />
+                  <Search sx={{ color: '#1976d2' }} />
                 </InputAdornment>
               ),
               endAdornment: searchTerm && (
                 <InputAdornment position="end">
                   <IconButton onClick={clearSearch}>
-                    <Clear />
+                    <Clear sx={{ color: '#1976d2' }} />
                   </IconButton>
                 </InputAdornment>
               ),
@@ -224,6 +265,7 @@ function Inventory() {
             <TableHead>
               <TableRow>
                 <TableCell sx={{ fontWeight: 600, fontSize: '1.1rem' }}>Nombre</TableCell>
+                <TableCell sx={{ fontWeight: 600, fontSize: '1.1rem' }}>Categoría</TableCell>
                 <TableCell sx={{ fontWeight: 600, fontSize: '1.1rem' }}>Cantidad</TableCell>
                 <TableCell sx={{ fontWeight: 600, fontSize: '1.1rem' }}>Precio (USD)</TableCell>
                 <TableCell sx={{ fontWeight: 600, fontSize: '1.1rem' }}>Acciones</TableCell>
@@ -231,20 +273,15 @@ function Inventory() {
             </TableHead>
             <TableBody>
               {filteredProducts.map((product) => (
-                <TableRow
-                  key={product.id}
-                  sx={{
-                    '&:hover': { backgroundColor: '#f1f5f9' },
-                    transition: 'background-color 0.3s ease',
-                  }}
-                >
+                <TableRow key={product.id}>
                   <TableCell sx={{ fontSize: '1rem' }}>{product.name}</TableCell>
+                  <TableCell sx={{ fontSize: '1rem' }}>{product.category || '-'}</TableCell>
                   <TableCell sx={{ fontSize: '1rem' }}>{product.quantity}</TableCell>
                   <TableCell sx={{ fontSize: '1rem' }}>${product.price.toFixed(2)}</TableCell>
                   <TableCell>
                     <Tooltip title="Editar">
                       <IconButton color="primary" onClick={() => openEditModalHandler(product)}>
-                        <Edit />
+                        <Edit sx={{ fontSize: 28 }} />
                       </IconButton>
                     </Tooltip>
                     <Tooltip title="Eliminar">
@@ -255,7 +292,7 @@ function Inventory() {
                           setOpenDeleteDialog(true);
                         }}
                       >
-                        <Delete />
+                        <Delete sx={{ fontSize: 28 }} />
                       </IconButton>
                     </Tooltip>
                   </TableCell>
@@ -266,7 +303,6 @@ function Inventory() {
         </TableContainer>
       </Container>
 
-      {/* Modal para editar producto */}
       <Modal open={openEditModal} onClose={() => setOpenEditModal(false)}>
         <Box
           sx={{
@@ -282,7 +318,7 @@ function Inventory() {
             width: '100%',
           }}
         >
-          <Typography variant="h6" gutterBottom>
+          <Typography variant="h6" gutterBottom sx={{ color: '#1976d2', fontWeight: 500 }}>
             Editar Producto
           </Typography>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -293,6 +329,22 @@ function Inventory() {
               variant="outlined"
               fullWidth
             />
+            <FormControl variant="outlined" fullWidth>
+              <InputLabel id="edit-category-label">Categoría (opcional)</InputLabel>
+              <Select
+                labelId="edit-category-label"
+                value={editCategory}
+                onChange={(e) => setEditCategory(e.target.value)}
+                label="Categoría (opcional)"
+              >
+                <MenuItem value="">Sin categoría</MenuItem>
+                {categories.filter(cat => cat !== '').map((cat) => (
+                  <MenuItem key={cat} value={cat}>
+                    {cat}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
             <TextField
               label="Cantidad"
               value={editQuantity}
@@ -307,14 +359,23 @@ function Inventory() {
               onChange={(e) => setEditPrice(e.target.value)}
               variant="outlined"
               type="number"
-              InputProps={{ startAdornment: '$' }}
+              InputProps={{ startAdornment: <InputAdornment position="start">$</InputAdornment> }}
               fullWidth
             />
             <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
-              <Button variant="contained" color="primary" onClick={saveEditProduct}>
+              <Button
+                variant="contained"
+                color="primary"
+                onClick={saveEditProduct}
+                sx={{ py: 1.5, px: 3 }}
+              >
                 Guardar
               </Button>
-              <Button variant="outlined" onClick={() => setOpenEditModal(false)}>
+              <Button
+                variant="outlined"
+                onClick={() => setOpenEditModal(false)}
+                sx={{ py: 1.5, px: 3 }}
+              >
                 Cancelar
               </Button>
             </Box>
@@ -322,19 +383,26 @@ function Inventory() {
         </Box>
       </Modal>
 
-      {/* Diálogo de confirmación para eliminar */}
       <Dialog open={openDeleteDialog} onClose={() => setOpenDeleteDialog(false)}>
-        <DialogTitle>Confirmar Eliminación</DialogTitle>
-        <DialogContent>
+        <DialogTitle sx={{ bgcolor: '#ffebee', color: '#d32f2f' }}>
+          Confirmar Eliminación
+        </DialogTitle>
+        <DialogContent sx={{ mt: 2 }}>
           <Typography>
             ¿Estás seguro de que deseas eliminar el producto "{selectedProduct?.name}"?
           </Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpenDeleteDialog(false)} color="primary">
+          <Button
+            onClick={() => setOpenDeleteDialog(false)}
+            sx={{ color: '#1976d2', fontWeight: 500 }}
+          >
             Cancelar
           </Button>
-          <Button onClick={deleteProduct} color="secondary">
+          <Button
+            onClick={deleteProduct}
+            sx={{ color: '#d32f2f', fontWeight: 500 }}
+          >
             Eliminar
           </Button>
         </DialogActions>

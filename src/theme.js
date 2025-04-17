@@ -1,4 +1,3 @@
-// src/theme.js
 import { createTheme } from '@mui/material/styles';
 
 const theme = createTheme({
@@ -21,9 +20,21 @@ const theme = createTheme({
       primary: '#2d3748',
       secondary: '#718096',
     },
+    success: {
+      main: '#388e3c',
+      light: '#e8f5e9',
+    },
+    warning: {
+      main: '#d32f2f',
+      light: '#ffebee',
+    },
+    info: {
+      main: '#0288d1',
+      light: '#e0f7fa',
+    },
   },
   typography: {
-    fontFamily: '"Roboto", "Helvetica", "Arial", sans-serif',
+    fontFamily: '"Poppins", "Roboto", "Helvetica", "Arial", sans-serif',
     h1: {
       fontSize: '2.5rem',
       fontWeight: 600,
@@ -50,6 +61,13 @@ const theme = createTheme({
           transition: 'all 0.3s ease',
           '&:hover': {
             boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)',
+            transform: 'scale(1.02)',
+          },
+        },
+        containedPrimary: {
+          background: 'linear-gradient(90deg, #1976d2, #42a5f5)',
+          '&:hover': {
+            background: 'linear-gradient(90deg, #1565c0, #2196f3)',
           },
         },
       },
@@ -95,8 +113,11 @@ const theme = createTheme({
           backgroundColor: '#fff',
           boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
           borderRadius: '8px',
+          '&:nth-of-type(even)': {
+            backgroundColor: '#f9f9f9',
+          },
           '&:hover': {
-            backgroundColor: '#f9fafb',
+            backgroundColor: '#e3f2fd',
           },
         },
       },

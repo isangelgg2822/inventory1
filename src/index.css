@@ -1,4 +1,11 @@
 /* src/index.css */
+@font-face {
+  font-family: 'Californian FB';
+  src: url('./fonts/CalifornianFB.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+
 body {
   font-family: Arial, sans-serif;
 }

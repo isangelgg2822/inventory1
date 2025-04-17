@@ -1,106 +1,309 @@
-// src/components/Home.jsx
-import { useEffect } from 'react';
-import Navbar from './Navbar';
+import React, { useEffect, useState, useCallback } from 'react';
+import { supabase } from '../supabase';
+import { useDashboard } from '../context/DashboardHooks';
 import {
   Container,
   Typography,
-  Box,
   Card,
   CardContent,
-  Grid, // Importamos Grid desde @mui/material
-  Divider,
+  Grid,
+  Box,
 } from '@mui/material';
-import MonetizationOnIcon from '@mui/icons-material/MonetizationOn';
+import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import InventoryIcon from '@mui/icons-material/Inventory';
-import { useDashboard } from '../context/DashboardHooks';
+import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
+import WarningIcon from '@mui/icons-material/Warning';
+import { Line } from 'react-chartjs-2';
+import {
+  Chart as ChartJS,
+  LineElement,
+  PointElement,
+  LinearScale,
+  Title,
+  CategoryScale,
+  Tooltip,
+  Legend,
+} from 'chart.js';
+
+// Registrar los componentes de Chart.js
+ChartJS.register(LineElement, PointElement, LinearScale, Title, CategoryScale, Tooltip, Legend);
 
 function Home() {
-  const { dailySalesTotal, totalProducts, fetchDailySales, fetchTotalProducts } = useDashboard();
+  const { fetchDailySales, fetchTotalProducts, fetchSalesLast7Days, fetchTotalSales } = useDashboard();
+  const [dailySales, setDailySales] = useState(0);
+  const [totalProducts, setTotalProducts] = useState(0);
+  const [totalSales, setTotalSales] = useState(0);
+  const [salesData, setSalesData] = useState([]);
+  const [lowStockProducts, setLowStockProducts] = useState(0); // Nuevo estado para productos con bajo stock
+  const [exchangeRate, setExchangeRate] = useState(1);
+  const [loading, setLoading] = useState(true);
 
+  // Obtener la tasa de cambio
+  const fetchExchangeRate = useCallback(async () => {
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      console.error('Error getting user:', userError);
+      return;
+    }
+    const { data, error } = await supabase
+      .from('settings')
+      .select('value')
+      .eq('key', 'exchange_rate')
+      .eq('user_id', user.id)
+      .single();
+    if (error) {
+      console.error('Error fetching exchange rate:', error);
+      return;
+    }
+    if (data) {
+      setExchangeRate(parseFloat(data.value) || 1);
+    }
+  }, []);
+
+  // Calcular productos con bajo stock
+  const fetchLowStockProducts = useCallback(async () => {
+    const { data, error } = await supabase.from('products').select('quantity');
+    if (error) {
+      console.error('Error fetching products for low stock:', error);
+      return 0;
+    }
+    return data?.filter(product => product.quantity < 10).length || 0;
+  }, []);
+
+  // Cargar todas las métricas
+  const loadData = useCallback(async () => {
+    try {
+      setLoading(true);
+      console.log('Home.jsx - Iniciando carga de datos...');
+      const sales = await fetchDailySales();
+      const products = await fetchTotalProducts();
+      const salesLast7Days = await fetchSalesLast7Days();
+      const totalSalesAmount = await fetchTotalSales();
+      const lowStock = await fetchLowStockProducts();
+      console.log('Home.jsx - Datos obtenidos:', { sales, products, salesLast7Days, totalSalesAmount, lowStock });
+      setDailySales(sales || 0);
+      setTotalProducts(products || 0);
+      setSalesData(salesLast7Days.length ? salesLast7Days : [0, 0, 0, 0, 0, sales || 0, 0]);
+      setTotalSales(totalSalesAmount || 0);
+      setLowStockProducts(lowStock);
+    } catch (error) {
+      console.error('Error loading data:', error);
+      setDailySales(0);
+      setTotalProducts(0);
+      setSalesData([0, 0, 0, 0, 0, 0, 0]);
+      setTotalSales(0);
+      setLowStockProducts(0);
+    } finally {
+      setLoading(false);
+      console.log('Home.jsx - Carga de datos finalizada, loading:', false);
+    }
+  }, [fetchDailySales, fetchTotalProducts, fetchSalesLast7Days, fetchTotalSales, fetchLowStockProducts]);
+
+  // Configurar suscripción en tiempo real y cargar datos iniciales
   useEffect(() => {
-    fetchDailySales();
-    fetchTotalProducts();
-  }, [fetchDailySales, fetchTotalProducts]);
+    fetchExchangeRate();
+    loadData();
+
+    // Suscripción a cambios en la tabla sales
+    const salesSubscription = supabase
+      .channel('public:sales')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'sales' }, (payload) => {
+        console.log('Change received in sales:', payload);
+        loadData();
+      })
+      .subscribe();
+
+    // Suscripción a cambios en la tabla sale_groups
+    const saleGroupsSubscription = supabase
+      .channel('public:sale_groups')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'sale_groups' }, (payload) => {
+        console.log('Change received in sale_groups:', payload);
+        loadData();
+      })
+      .subscribe();
+
+    // Suscripción a cambios en la tabla products (para bajo stock)
+    const productsSubscription = supabase
+      .channel('public:products')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, (payload) => {
+        console.log('Change received in products:', payload);
+        loadData();
+      })
+      .subscribe();
+
+    // Limpiar las suscripciones al desmontar el componente
+    return () => {
+      supabase.removeChannel(salesSubscription);
+      supabase.removeChannel(saleGroupsSubscription);
+      supabase.removeChannel(productsSubscription);
+    };
+  }, [fetchExchangeRate, loadData]);
+
+  // Calcular las ventas diarias en dólares
+  const dailySalesUsd = dailySales / exchangeRate;
+
+  // Preparar datos para el gráfico de ventas de los últimos 7 días
+  const today = new Date();
+  const labels = Array.from({ length: 7 }, (_, i) => {
+    const date = new Date(today);
+    date.setDate(today.getDate() - (6 - i));
+    return `${date.getDate()}/${date.getMonth() + 1}`;
+  });
+
+  const chartData = {
+    labels,
+    datasets: [
+      {
+        label: 'Ventas Diarias (Bs.)',
+        data: salesData,
+        borderColor: '#1976d2',
+        backgroundColor: 'rgba(25, 118, 210, 0.2)',
+        fill: true,
+        tension: 0.3,
+        pointRadius: 5,
+        pointHoverRadius: 8,
+      },
+    ],
+  };
+
+  const chartOptions = {
+    responsive: true,
+    plugins: {
+      legend: {
+        position: 'top',
+        labels: {
+          color: '#2d3748',
+          font: { size: 14 },
+        },
+      },
+      title: {
+        display: true,
+        text: 'Tendencia de Ventas (Últimos 7 Días)',
+        font: { size: 16 },
+        color: '#2d3748',
+        padding: { top: 10, bottom: 20 },
+      },
+      tooltip: {
+        backgroundColor: '#2d3748',
+        titleColor: '#fff',
+        bodyColor: '#fff',
+      },
+    },
+    scales: {
+      y: {
+        beginAtZero: true,
+        title: {
+          display: true,
+          text: 'Ventas (Bs.)',
+          color: '#2d3748',
+          font: { size: 14 },
+        },
+        grid: { color: 'rgba(0, 0, 0, 0.05)' },
+        ticks: { color: '#2d3748' },
+      },
+      x: {
+        title: {
+          display: true,
+          text: 'Fecha',
+          color: '#2d3748',
+          font: { size: 14 },
+        },
+        grid: { display: false },
+        ticks: { color: '#2d3748' },
+      },
+    },
+  };
+
+  if (loading) {
+    console.log('Home.jsx - Mostrando estado de carga...');
+    return (
+      <Box sx={{ textAlign: 'center', mt: 4 }}>
+        <Typography variant="h6">Cargando...</Typography>
+      </Box>
+    );
+  }
+
+  console.log('Home.jsx - Renderizando contenido principal:', { dailySales, totalProducts, salesData, totalSales, lowStockProducts });
 
   return (
-    <>
-      <Navbar />
-      <Box
-        component="main"
-        sx={{
-          flexGrow: 1,
-          p: 3,
-          ml: { sm: '240px' },
-          mt: { xs: 2, sm: 0 },
-          width: { xs: '100%', sm: 'calc(100% - 240px)' },
-        }}
-      >
-        <Container maxWidth="lg">
-          <Typography
-            variant="h1"
-            gutterBottom
-            sx={{
-              fontSize: { xs: '1.5rem', sm: '2rem', md: '2.5rem' },
-              fontWeight: 'bold',
-              color: '#1976d2',
-            }}
-          >
-            Dashboard
-          </Typography>
-          <Divider sx={{ mb: 4 }} />
-          <Grid container spacing={4}>
-            <Grid item xs={12} sm={6}>
-              <Card
-                sx={{
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                  borderRadius: '12px',
-                  background: 'linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%)',
-                }}
-              >
-                <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <MonetizationOnIcon sx={{ fontSize: 40, color: '#1976d2' }} />
-                  <Box>
-                    <Typography variant="h6" component="div" sx={{ fontWeight: 'bold' }}>
-                      Ventas del Día
-                    </Typography>
-                    <Typography variant="h4" color="primary" sx={{ fontWeight: 'bold' }}>
-                      Bs. {dailySalesTotal.toFixed(2)}
-                    </Typography>
-                    <Typography color="text.secondary">
-                      Ingresos totales de hoy
-                    </Typography>
-                  </Box>
-                </CardContent>
-              </Card>
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <Card
-                sx={{
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                  borderRadius: '12px',
-                  background: 'linear-gradient(135deg, #e0f7fa 0%, #b2ebf2 100%)',
-                }}
-              >
-                <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <InventoryIcon sx={{ fontSize: 40, color: '#1976d2' }} />
-                  <Box>
-                    <Typography variant="h6" component="div" sx={{ fontWeight: 'bold' }}>
-                      Productos Registrados
-                    </Typography>
-                    <Typography variant="h4" color="primary" sx={{ fontWeight: 'bold' }}>
-                      {totalProducts}
-                    </Typography>
-                    <Typography color="text.secondary">
-                      Total de productos en inventario
-                    </Typography>
-                  </Box>
-                </CardContent>
-              </Card>
-            </Grid>
-          </Grid>
-        </Container>
-      </Box>
-    </>
+    <Container sx={{ mt: 4, mb: 4 }}>
+      <Typography variant="h1" gutterBottom sx={{ fontSize: '2.5rem', fontWeight: 600 }}>
+        Dashboard
+      </Typography>
+
+      <Grid container spacing={3} sx={{ mb: 4 }}>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ backgroundColor: '#e3f2fd', boxShadow: 3, borderRadius: '12px' }}>
+            <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <TrendingUpIcon sx={{ fontSize: 40, color: '#1976d2' }} />
+              <Box>
+                <Typography variant="h6" color="text.secondary">
+                  Ventas Diarias
+                </Typography>
+                <Typography variant="h5" color="#2d3748">
+                  Bs. {dailySales.toFixed(2)}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  USD {dailySalesUsd.toFixed(2)}
+                </Typography>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ backgroundColor: '#e0f7fa', boxShadow: 3, borderRadius: '12px' }}>
+            <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <InventoryIcon sx={{ fontSize: 40, color: '#0288d1' }} />
+              <Box>
+                <Typography variant="h6" color="text.secondary">
+                  Total de Productos
+                </Typography>
+                <Typography variant="h5" color="#2d3748">
+                  {totalProducts}
+                </Typography>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ backgroundColor: '#e8f5e9', boxShadow: 3, borderRadius: '12px' }}>
+            <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <ShoppingCartIcon sx={{ fontSize: 40, color: '#388e3c' }} />
+              <Box>
+                <Typography variant="h6" color="text.secondary">
+                  Ventas Totales
+                </Typography>
+                <Typography variant="h5" color="#2d3748">
+                  Bs. {totalSales.toFixed(2)}
+                </Typography>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ backgroundColor: '#ffebee', boxShadow: 3, borderRadius: '12px' }}>
+            <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <WarningIcon sx={{ fontSize: 40, color: '#d32f2f' }} />
+              <Box>
+                <Typography variant="h6" color="text.secondary">
+                  Productos con Bajo Stock
+                </Typography>
+                <Typography variant="h5" color="#2d3748">
+                  {lowStockProducts}
+                </Typography>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
+
+      <Card sx={{ p: 2, boxShadow: 3, borderRadius: '12px', maxWidth: '800px', mx: 'auto' }}>
+        <Line data={chartData} options={chartOptions} />
+      </Card>
+    </Container>
   );
 }
 
