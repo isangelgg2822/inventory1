@@ -7,23 +7,22 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import Home from './components/Home';
 import PointOfSale from './components/POS/POS';
 import Settings from './components/Settings/Settings';
-import Inventory from './components/Inventory/Inventory';
+import Inventory from './components/inventory/Inventory';
 import Reports from './components/Reports/Reports';
 import Navbar from './components/Navbar';
-import TopBar from './components/Topbar'; // Nuevo componente
-import Footer from './components/Footer'; // Nuevo componente
+import TopBar from './components/Topbar';
+import Footer from './components/Footer';
 import ProtectedRoute from './components/ProtectedRoute';
 import Login from './components/auth/Login';
 import Register from './components/auth/Register';
 import ResetPassword from './components/auth/ResetPassword';
 import { Box } from '@mui/material';
 import { supabase } from './supabase';
-import './fonts.css';
 
 function App() {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [open, setOpen] = useState(false); // Estado para controlar el Drawer
+  const [open, setOpen] = useState(false);
 
   const fetchSession = useCallback(async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -54,7 +53,6 @@ function App() {
         <DashboardProvider>
           <Router>
             <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-              {/* TopBar y Navbar se muestran en todas las rutas protegidas */}
               {session && (
                 <>
                   <TopBar onDrawerOpen={() => setOpen(true)} />
@@ -66,14 +64,15 @@ function App() {
                 sx={{
                   flexGrow: 1,
                   p: 3,
-                  ml: { sm: open ? '240px' : 0 },
-                  mt: { xs: 8, sm: 8 }, // Margen superior para TopBar
-                  pb: 6, // Margen inferior para Footer
+                  ml: { sm: open ? '260px' : 0 }, // Ajustado para coincidir con el ancho del Drawer
+                  mt: { xs: '72px', sm: '72px' }, // Aumentado para evitar solapamiento con TopBar (64px + algo de espacio)
+                  pb: '64px', // Aumentado para asegurar espacio para el Footer
                   width: {
                     xs: '100%',
-                    sm: open ? 'calc(100% - 240px)' : '100%',
+                    sm: open ? 'calc(100% - 260px)' : '100%', // Ajustado para coincidir con el Drawer
                   },
                   transition: 'margin-left 0.3s, width 0.3s',
+                  boxSizing: 'border-box', // Asegura que el padding no afecte el ancho total
                 }}
               >
                 <Routes>
