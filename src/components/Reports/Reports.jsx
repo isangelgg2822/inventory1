@@ -54,11 +54,9 @@ function Reports() {
     setError(null);
 
     try {
-      // Formatear las fechas para la consulta
       const start = new Date(startDate).toISOString().split('T')[0];
       const end = new Date(endDate).toISOString().split('T')[0];
 
-      // Obtener los grupos de ventas dentro del rango de fechas
       const { data: saleGroups, error: groupsError } = await supabase
         .from('sale_groups')
         .select('sale_group_id, total, payment_method, created_at')
@@ -81,7 +79,6 @@ function Reports() {
         return;
       }
 
-      // Obtener las ventas individuales para determinar si están anuladas
       const saleGroupIds = saleGroups.map(group => group.sale_group_id);
       const { data: sales, error: salesError } = await supabase
         .from('sales')
@@ -93,7 +90,6 @@ function Reports() {
         throw new Error(`Error al cargar sales: ${salesError.message} (Código: ${salesError.code})`);
       }
 
-      // Determinar qué grupos de ventas están anulados
       const canceledSaleGroups = new Set();
       const saleGroupCancellationStatus = sales.reduce((acc, sale) => {
         if (!acc[sale.sale_group_id]) {
@@ -111,11 +107,9 @@ function Reports() {
         }
       });
 
-      // Filtrar los grupos de ventas: activos y anulados usando el Set
       const activeSaleGroups = saleGroups.filter(group => !canceledSaleGroups.has(group.sale_group_id));
       const canceledSaleGroupsList = saleGroups.filter(group => canceledSaleGroups.has(group.sale_group_id));
 
-      // Procesar ventas activas para el gráfico y totales
       const salesByDate = activeSaleGroups.reduce((acc, group) => {
         const date = group.created_at.split('T')[0];
         if (!acc[date]) {
@@ -134,7 +128,6 @@ function Reports() {
       setSalesData(formattedSalesData);
       setTotalSales(total);
 
-      // Resumen por método de pago (solo ventas activas)
       const paymentSummary = activeSaleGroups.reduce((acc, group) => {
         const method = group.payment_method || 'Desconocido';
         if (!acc[method]) {
@@ -146,7 +139,6 @@ function Reports() {
       }, {});
       setPaymentSummary(paymentSummary);
 
-      // Resumen de anulaciones
       const canceledSummary = canceledSaleGroupsList.reduce((acc, group) => {
         const method = group.payment_method || 'Desconocido';
         if (!acc[method]) {
@@ -251,7 +243,7 @@ function Reports() {
   }));
 
   return (
-    <Container sx={{ mt: 4, mb: 4 }}>
+    <Container>
       <Typography variant="h1" gutterBottom sx={{ fontSize: '2.5rem', fontWeight: 600 }}>
         Reportes
       </Typography>

@@ -170,7 +170,7 @@ function Inventory() {
   return (
     <>
       <Navbar />
-      <Container sx={{ mt: 4, mb: 4 }}>
+      <Container>
         <Typography variant="h1" gutterBottom sx={{ fontSize: '2.5rem', fontWeight: 600 }}>
           Inventario
         </Typography>

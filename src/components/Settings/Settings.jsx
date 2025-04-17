@@ -117,7 +117,6 @@ function Settings() {
       .eq('user_id', user.id);
 
     if (data && data.length > 0) {
-      // Actualizar la tasa existente
       const { error } = await supabase
         .from('settings')
         .update({ value: exchangeRate, updated_at: new Date().toISOString() })
@@ -128,7 +127,6 @@ function Settings() {
         return;
       }
     } else {
-      // Crear una nueva tasa
       const { error } = await supabase.from('settings').insert([
         { key: 'exchange_rate', value: exchangeRate, user_id: user.id, updated_at: new Date().toISOString() },
       ]);
@@ -139,7 +137,6 @@ function Settings() {
       }
     }
 
-    // Guardar en el historial
     const { error: historyError } = await supabase.from('exchange_rate_history').insert([
       { user_id: user.id, exchange_rate: parseFloat(exchangeRate) },
     ]);
@@ -147,7 +144,6 @@ function Settings() {
       console.error('Error saving to exchange rate history:', historyError);
     }
 
-    // Refrescar los datos
     await fetchExchangeRate(user);
     await fetchExchangeRateHistory(user);
     await fetchRateHistory(user);
@@ -162,7 +158,7 @@ function Settings() {
 
   if (error) {
     return (
-      <Container sx={{ mt: 4, mb: 4 }}>
+      <Container>
         <Typography variant="h1" gutterBottom sx={{ fontSize: '2.5rem', fontWeight: 600 }}>
           Configuración
         </Typography>
@@ -186,7 +182,7 @@ function Settings() {
   return (
     <>
       <Navbar open={open} />
-      <Container sx={{ mt: 4, mb: 4 }}>
+      <Container>
         <Typography variant="h1" gutterBottom sx={{ fontSize: '2.5rem', fontWeight: 600, color: '#1976d2' }}>
           Configuración
         </Typography>

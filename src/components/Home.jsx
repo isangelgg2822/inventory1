@@ -34,11 +34,10 @@ function Home() {
   const [totalProducts, setTotalProducts] = useState(0);
   const [totalSales, setTotalSales] = useState(0);
   const [salesData, setSalesData] = useState([]);
-  const [lowStockProducts, setLowStockProducts] = useState(0); // Nuevo estado para productos con bajo stock
+  const [lowStockProducts, setLowStockProducts] = useState(0);
   const [exchangeRate, setExchangeRate] = useState(1);
   const [loading, setLoading] = useState(true);
 
-  // Obtener la tasa de cambio
   const fetchExchangeRate = useCallback(async () => {
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     if (userError || !user) {
@@ -60,7 +59,6 @@ function Home() {
     }
   }, []);
 
-  // Calcular productos con bajo stock
   const fetchLowStockProducts = useCallback(async () => {
     const { data, error } = await supabase.from('products').select('quantity');
     if (error) {
@@ -70,7 +68,6 @@ function Home() {
     return data?.filter(product => product.quantity < 10).length || 0;
   }, []);
 
-  // Cargar todas las métricas
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
@@ -99,12 +96,10 @@ function Home() {
     }
   }, [fetchDailySales, fetchTotalProducts, fetchSalesLast7Days, fetchTotalSales, fetchLowStockProducts]);
 
-  // Configurar suscripción en tiempo real y cargar datos iniciales
   useEffect(() => {
     fetchExchangeRate();
     loadData();
 
-    // Suscripción a cambios en la tabla sales
     const salesSubscription = supabase
       .channel('public:sales')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'sales' }, (payload) => {
@@ -113,7 +108,6 @@ function Home() {
       })
       .subscribe();
 
-    // Suscripción a cambios en la tabla sale_groups
     const saleGroupsSubscription = supabase
       .channel('public:sale_groups')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'sale_groups' }, (payload) => {
@@ -122,7 +116,6 @@ function Home() {
       })
       .subscribe();
 
-    // Suscripción a cambios en la tabla products (para bajo stock)
     const productsSubscription = supabase
       .channel('public:products')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, (payload) => {
@@ -131,7 +124,6 @@ function Home() {
       })
       .subscribe();
 
-    // Limpiar las suscripciones al desmontar el componente
     return () => {
       supabase.removeChannel(salesSubscription);
       supabase.removeChannel(saleGroupsSubscription);
@@ -139,10 +131,8 @@ function Home() {
     };
   }, [fetchExchangeRate, loadData]);
 
-  // Calcular las ventas diarias en dólares
   const dailySalesUsd = dailySales / exchangeRate;
 
-  // Preparar datos para el gráfico de ventas de los últimos 7 días
   const today = new Date();
   const labels = Array.from({ length: 7 }, (_, i) => {
     const date = new Date(today);
@@ -217,7 +207,7 @@ function Home() {
   if (loading) {
     console.log('Home.jsx - Mostrando estado de carga...');
     return (
-      <Box sx={{ textAlign: 'center', mt: 4 }}>
+      <Box sx={{ textAlign: 'center' }}>
         <Typography variant="h6">Cargando...</Typography>
       </Box>
     );
@@ -226,7 +216,7 @@ function Home() {
   console.log('Home.jsx - Renderizando contenido principal:', { dailySales, totalProducts, salesData, totalSales, lowStockProducts });
 
   return (
-    <Container sx={{ mt: 4, mb: 4 }}>
+    <Container>
       <Typography variant="h1" gutterBottom sx={{ fontSize: '2.5rem', fontWeight: 600 }}>
         Dashboard
       </Typography>

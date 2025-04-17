@@ -22,7 +22,7 @@ import { supabase } from './supabase';
 function App() {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(true); // Cambiado a true para que el Drawer esté abierto por defecto
 
   const fetchSession = useCallback(async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -64,15 +64,15 @@ function App() {
                 sx={{
                   flexGrow: 1,
                   p: 3,
-                  ml: { sm: open ? '260px' : 0 }, // Ajustado para coincidir con el ancho del Drawer
-                  mt: { xs: '72px', sm: '72px' }, // Aumentado para evitar solapamiento con TopBar (64px + algo de espacio)
-                  pb: '64px', // Aumentado para asegurar espacio para el Footer
+                  ml: { xs: 0, sm: open ? '240px' : 0 }, // Ajustado para el ancho del Drawer (240px)
+                  mt: { xs: '80px', sm: '80px' }, // Aumentado para evitar solapamiento con TopBar
+                  pb: '80px', // Aumentado para asegurar espacio para el Footer
                   width: {
                     xs: '100%',
-                    sm: open ? 'calc(100% - 260px)' : '100%', // Ajustado para coincidir con el Drawer
+                    sm: open ? 'calc(100% - 240px)' : '100%', // Ajustado para el Drawer
                   },
                   transition: 'margin-left 0.3s, width 0.3s',
-                  boxSizing: 'border-box', // Asegura que el padding no afecte el ancho total
+                  boxSizing: 'border-box',
                 }}
               >
                 <Routes>
