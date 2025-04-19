@@ -111,7 +111,6 @@ function Login() {
             boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
             p: 4,
             display: 'flex',
-            alignContent: 'center',
             flexDirection: 'column',
             gap: 3,
           }}
