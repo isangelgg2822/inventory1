@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { supabase } from '../../supabase';
 import { useNavigate } from 'react-router-dom';
 import {
+  Container,
   TextField,
   Button,
   Typography,
@@ -99,16 +100,10 @@ function Login() {
         alignItems: 'center',
         justifyContent: 'center',
         background: 'linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%)',
-        padding: 0, // Sin padding para evitar desplazamientos
+        padding: 2,
       }}
     >
-      <Box
-        sx={{
-          maxWidth: { xs: '320px', sm: '400px' }, // Ancho máximo similar a maxWidth="xs"
-          width: '100%', // Ocupa todo el ancho disponible dentro de maxWidth
-          mx: 'auto', // Centrado horizontal absoluto
-        }}
-      >
+      <Container maxWidth="xs">
         <Box
           sx={{
             backgroundColor: '#fff',
@@ -224,7 +219,7 @@ function Login() {
             </Button>
           </Box>
         </Box>
-      </Box>
+      </Container>
     </Box>
   );
 }
