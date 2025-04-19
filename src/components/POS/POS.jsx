@@ -713,7 +713,7 @@ function PointOfSale() {
             variant="outlined"
             size="medium"
             fullWidth
-            sx={{ backgroundColor: '#fff', borderRadius: '8px', '& .MuiInputBase-input': { fontSize: '0.8rem', padding: '10px' } }}
+            sx={{ backgroundColor: '#fff', borderRadius: '8px', '& .MuiInputBase-input': { fontSize: '0.9rem', padding: '10px' } }}
           />
           {filteredProducts.length > 0 && (
             <List
@@ -856,7 +856,7 @@ function PointOfSale() {
         component="main"
         sx={{
           flexGrow: 1,
-          p: 3,
+          p: { xs: 1, sm: 2 }, // Reducimos el padding general para ganar más espacio
           ml: { sm: open ? '240px' : 0 },
           mr: { sm: '400px' },
           mt: { xs: 8, sm: 8 }, // Ajustado para TopBar
@@ -870,7 +870,12 @@ function PointOfSale() {
           transition: 'margin-left 0.3s, margin-right 0.3s, width 0.3s',
         }}
       >
-        <Container maxWidth="lg">
+        <Container
+          sx={{
+            px: { xs: 0, sm: 1, md: 2 }, // Reducimos aún más el padding lateral
+            maxWidth: '100%', // Eliminamos maxWidth="lg" para usar todo el ancho disponible
+          }}
+        >
           <Typography
             variant="h1"
             gutterBottom
@@ -907,7 +912,7 @@ function PointOfSale() {
             Ventas Recientes
           </Typography>
           <TableContainer component={Paper} sx={{ borderRadius: '12px', boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)' }}>
-            <Table size={isMobile ? 'small' : 'large'}>
+            <Table size={isMobile ? 'small' : 'medium'}>
               <TableHead>
                 <TableRow>
                   <TableCell sx={{ fontWeight: 600, fontSize: { xs: '0.8rem', sm: '1rem' }, py: 1.5 }}>

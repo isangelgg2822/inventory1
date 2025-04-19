@@ -102,7 +102,7 @@ const theme = createTheme({
       styleOverrides: {
         root: {
           borderBottom: 'none',
-          padding: '8px',
+          padding: '12px',
         },
         head: {
           backgroundColor: '#e3f2fd',
