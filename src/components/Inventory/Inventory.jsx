@@ -185,7 +185,7 @@ function Inventory() {
               value={name}
               onChange={(e) => setName(e.target.value)}
               variant="outlined"
-              size="medium"
+              size="small"
               sx={{ width: { xs: '100%', sm: '300px' } }}
             />
             <TextField
@@ -193,7 +193,7 @@ function Inventory() {
               value={quantity}
               onChange={(e) => setQuantity(e.target.value)}
               variant="outlined"
-              size="medium"
+              size="small"
               type="number"
               sx={{ width: { xs: '100%', sm: '150px' } }}
             />
@@ -202,7 +202,7 @@ function Inventory() {
               value={price}
               onChange={(e) => setPrice(e.target.value)}
               variant="outlined"
-              size="medium"
+              size="small"
               type="number"
               InputProps={{ startAdornment: <InputAdornment position="start">$</InputAdornment> }}
               sx={{ width: { xs: '100%', sm: '150px' } }}
