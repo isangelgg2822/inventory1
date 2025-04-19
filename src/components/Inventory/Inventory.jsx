@@ -171,7 +171,7 @@ function Inventory() {
     <>
       <Navbar />
       <Container>
-        <Typography variant="h2" gutterBottom sx={{ fontSize: '1rem', fontWeight: 600 }}>
+        <Typography variant="h2" gutterBottom sx={{ fontSize: '1.5rem', fontWeight: 600 }}>
           Inventario
         </Typography>
 
@@ -264,24 +264,24 @@ function Inventory() {
           <Table>
             <TableHead>
               <TableRow>
-                <TableCell sx={{ fontWeight: 600, fontSize: '1.1rem' }}>Nombre</TableCell>
-                <TableCell sx={{ fontWeight: 600, fontSize: '1.1rem' }}>Categoría</TableCell>
-                <TableCell sx={{ fontWeight: 600, fontSize: '1.1rem' }}>Cantidad</TableCell>
-                <TableCell sx={{ fontWeight: 600, fontSize: '1.1rem' }}>Precio (USD)</TableCell>
-                <TableCell sx={{ fontWeight: 600, fontSize: '1.1rem' }}>Acciones</TableCell>
+                <TableCell sx={{ fontWeight: 600, fontSize: '0.8rem' }}>Nombre</TableCell>
+                <TableCell sx={{ fontWeight: 600, fontSize: '0.8rem' }}>Categoría</TableCell>
+                <TableCell sx={{ fontWeight: 600, fontSize: '0.8rem' }}>Cantidad</TableCell>
+                <TableCell sx={{ fontWeight: 600, fontSize: '0.8rem' }}>Precio (USD)</TableCell>
+                <TableCell sx={{ fontWeight: 600, fontSize: '0.8rem' }}>Acciones</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {filteredProducts.map((product) => (
                 <TableRow key={product.id}>
-                  <TableCell sx={{ fontSize: '1rem' }}>{product.name}</TableCell>
-                  <TableCell sx={{ fontSize: '1rem' }}>{product.category || '-'}</TableCell>
-                  <TableCell sx={{ fontSize: '1rem' }}>{product.quantity}</TableCell>
-                  <TableCell sx={{ fontSize: '1rem' }}>${product.price.toFixed(2)}</TableCell>
+                  <TableCell sx={{ fontSize: '0.7rem' }}>{product.name}</TableCell>
+                  <TableCell sx={{ fontSize: '0.7rem' }}>{product.category || '-'}</TableCell>
+                  <TableCell sx={{ fontSize: '0.7rem' }}>{product.quantity}</TableCell>
+                  <TableCell sx={{ fontSize: '0.7rem' }}>${product.price.toFixed(2)}</TableCell>
                   <TableCell>
                     <Tooltip title="Editar">
                       <IconButton color="primary" onClick={() => openEditModalHandler(product)}>
-                        <Edit sx={{ fontSize: 28 }} />
+                        <Edit sx={{ fontSize: 24 }} />
                       </IconButton>
                     </Tooltip>
                     <Tooltip title="Eliminar">
@@ -292,7 +292,7 @@ function Inventory() {
                           setOpenDeleteDialog(true);
                         }}
                       >
-                        <Delete sx={{ fontSize: 28 }} />
+                        <Delete sx={{ fontSize: 24 }} />
                       </IconButton>
                     </Tooltip>
                   </TableCell>

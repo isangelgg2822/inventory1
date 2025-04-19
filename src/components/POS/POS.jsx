@@ -70,7 +70,7 @@ const SaleRow = memo(({ group, index, products, reprintTicket, setSelectedSaleGr
               setOpenCancelDialog(true);
             }}
           >
-            <CancelIcon sx={{ fontSize: 28 }} />
+            <CancelIcon sx={{ fontSize: 24 }} />
           </IconButton>
         </Tooltip>
       </TableCell>
@@ -683,7 +683,7 @@ function PointOfSale() {
           variant="contained"
           color="primary"
           onClick={() => navigate('/settings')}
-          sx={{ py: 1, px: 2, fontSize: '0.9rem' }}
+          sx={{ py: 1, px: 2, fontSize: '0.8rem' }}
         >
           Ir a Configuración
         </Button>
@@ -713,7 +713,7 @@ function PointOfSale() {
             variant="outlined"
             size="medium"
             fullWidth
-            sx={{ backgroundColor: '#fff', borderRadius: '8px', '& .MuiInputBase-input': { fontSize: '1rem', padding: '10px' } }}
+            sx={{ backgroundColor: '#fff', borderRadius: '8px', '& .MuiInputBase-input': { fontSize: '0.8rem', padding: '10px' } }}
           />
           {filteredProducts.length > 0 && (
             <List
@@ -756,14 +756,14 @@ function PointOfSale() {
           variant="contained"
           color="primary"
           onClick={addToCart}
-          sx={{ width: { xs: '100%', sm: 'auto' }, whiteSpace: 'nowrap', py: 1, px: 2, fontSize: '0.9rem' }}
+          sx={{ width: { xs: '100%', sm: 'auto' }, whiteSpace: 'nowrap', py: 1, px: 2, fontSize: '0.8rem' }}
         >
           Añadir al Carrito
         </Button>
       </Box>
 
       {cart.length === 0 ? (
-        <Typography color="text.secondary" sx={{ textAlign: 'center', fontSize: '1rem' }}>
+        <Typography color="text.secondary" sx={{ textAlign: 'center', fontSize: '0.8rem' }}>
           El carrito está vacío
         </Typography>
       ) : (
@@ -840,7 +840,7 @@ function PointOfSale() {
             color="primary"
             onClick={registerSale}
             startIcon={<ReceiptIcon />}
-            sx={{ width: '100%', py: 1, fontSize: '0.9rem' }}
+            sx={{ width: '100%', py: 1, fontSize: '0.8rem' }}
             disabled={cart.length === 0 || !paymentMethod}
           >
             Registrar Venta y Generar Ticket
@@ -888,7 +888,7 @@ function PointOfSale() {
               variant="contained"
               onClick={() => setCartDrawerOpen(true)}
               startIcon={<ShoppingCartIcon />}
-              sx={{ width: { xs: '100%', sm: 'auto' }, whiteSpace: 'nowrap', mb: 4, py: 1, fontSize: '0.9rem' }}
+              sx={{ width: { xs: '100%', sm: 'auto' }, whiteSpace: 'nowrap', mb: 4, py: 1, fontSize: '0.8rem' }}
             >
               Ver Carrito ({cart.length})
             </Button>

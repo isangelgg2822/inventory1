@@ -225,7 +225,7 @@ function Home() {
 
   return (
     <Container>
-      <Typography variant="h2" gutterBottom sx={{ fontSize: '1rem', fontWeight: 600 }}>
+      <Typography variant="h2" gutterBottom sx={{ fontSize: '1.5rem', fontWeight: 600 }}>
         Dashboard
       </Typography>
 
@@ -252,7 +252,7 @@ function Home() {
         <Grid item xs={12} sm={6} md={3}>
           <Card sx={{ backgroundColor: '#e0f7fa', boxShadow: 3, borderRadius: '12px' }}>
             <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <InventoryIcon sx={{ fontSize: 40, color: '#0288d1' }} />
+              <InventoryIcon sx={{ fontSize: 30, color: '#0288d1' }} />
               <Box>
                 <Typography variant="h6" color="text.secondary">
                   Total de Productos
@@ -268,7 +268,7 @@ function Home() {
         <Grid item xs={12} sm={6} md={3}>
           <Card sx={{ backgroundColor: '#e8f5e9', boxShadow: 3, borderRadius: '12px' }}>
             <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <ShoppingCartIcon sx={{ fontSize: 40, color: '#388e3c' }} />
+              <ShoppingCartIcon sx={{ fontSize: 30, color: '#388e3c' }} />
               <Box>
                 <Typography variant="h6" color="text.secondary">
                   Ventas Totales
@@ -284,7 +284,7 @@ function Home() {
         <Grid item xs={12} sm={6} md={3}>
           <Card sx={{ backgroundColor: '#ffebee', boxShadow: 3, borderRadius: '12px' }}>
             <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <WarningIcon sx={{ fontSize: 40, color: '#d32f2f' }} />
+              <WarningIcon sx={{ fontSize: 30, color: '#d32f2f' }} />
               <Box>
                 <Typography variant="h6" color="text.secondary">
                   Productos con Bajo Stock

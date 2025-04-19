@@ -159,7 +159,7 @@ function Settings() {
   if (error) {
     return (
       <Container>
-        <Typography variant="h1" gutterBottom sx={{ fontSize: '2.5rem', fontWeight: 600 }}>
+        <Typography variant="h1" gutterBottom sx={{ fontSize: '1.5rem', fontWeight: 600 }}>
           Configuración
         </Typography>
         <Box sx={{ backgroundColor: '#ffebee', p: 3, borderRadius: '12px', mb: 2 }}>

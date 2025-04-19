@@ -36,12 +36,12 @@ const theme = createTheme({
   typography: {
     fontFamily: '"Poppins", "Roboto", "Helvetica", "Arial", sans-serif',
     h1: {
-      fontSize: '2.5rem',
+      fontSize: '1.5rem',
       fontWeight: 600,
       color: '#2d3748',
     },
     h2: {
-      fontSize: '1.8rem',
+      fontSize: '1rem',
       fontWeight: 500,
       color: '#2d3748',
     },
