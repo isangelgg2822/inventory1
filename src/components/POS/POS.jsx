@@ -906,16 +906,8 @@ function PointOfSale() {
           >
             Ventas Recientes
           </Typography>
-          <TableContainer    sx={{
-    width: '90%', // La tabla ocupará el 90% del ancho del contenedor.
-    margin: '0 auto', // Centra el contenedor horizontalmente en la pantalla.
-    maxHeight: '70vh', // Limita la altura máxima del contenedor para evitar desbordamientos.
-    overflow: 'auto', // Habilita el desplazamiento si la tabla es muy grande.
-    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)', // Añade una sombra para un diseño más atractivo.
-    borderRadius: '12px', // Bordes redondeados para darle un estilo moderno.
-    backgroundColor: '#fff', // Fondo blanco para que se vea más limpio.
-  }} >
-            <Table size={isMobile ? 'small' : 'medium'}>
+          <TableContainer component={Paper} sx={{ borderRadius: '12px', boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)' }}>
+            <Table size={isMobile ? 'small' : 'large'}>
               <TableHead>
                 <TableRow>
                   <TableCell sx={{ fontWeight: 600, fontSize: { xs: '0.8rem', sm: '1rem' }, py: 1.5 }}>
