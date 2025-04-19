@@ -13,27 +13,29 @@ import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import InventoryIcon from '@mui/icons-material/Inventory';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import WarningIcon from '@mui/icons-material/Warning';
-import { Line } from 'react-chartjs-2';
-import {
-  Chart as ChartJS,
-  LineElement,
-  PointElement,
-  LinearScale,
-  Title,
-  CategoryScale,
-  Tooltip,
-  Legend,
-} from 'chart.js';
+// Commented out chart imports to prevent unused imports
+// import { Line } from 'react-chartjs-2';
+// import {
+//   Chart as ChartJS,
+//   LineElement,
+//   PointElement,
+//   LinearScale,
+//   Title,
+//   CategoryScale,
+//   Tooltip,
+//   Legend,
+// } from 'chart.js';
 
-// Registrar los componentes de Chart.js
-ChartJS.register(LineElement, PointElement, LinearScale, Title, CategoryScale, Tooltip, Legend);
+// Commented out Chart.js registration since chart is not used
+// ChartJS.register(LineElement, PointElement, LinearScale, Title, CategoryScale, Tooltip, Legend);
 
 function Home() {
-  const { fetchDailySales, fetchTotalProducts, fetchSalesLast7Days, fetchTotalSales } = useDashboard();
+  const { fetchDailySales, fetchTotalProducts, /* fetchSalesLast7Days, */ fetchTotalSales } = useDashboard();
   const [dailySales, setDailySales] = useState(0);
   const [totalProducts, setTotalProducts] = useState(0);
   const [totalSales, setTotalSales] = useState(0);
-  const [salesData, setSalesData] = useState([]);
+  // Commented out salesData state to prevent chart data fetching
+  // const [salesData, setSalesData] = useState([]);
   const [lowStockProducts, setLowStockProducts] = useState(0);
   const [exchangeRate, setExchangeRate] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -74,27 +76,30 @@ function Home() {
       console.log('Home.jsx - Iniciando carga de datos...');
       const sales = await fetchDailySales();
       const products = await fetchTotalProducts();
-      const salesLast7Days = await fetchSalesLast7Days();
+      // Commented out fetchSalesLast7Days to prevent loading delays
+      // const salesLast7Days = await fetchSalesLast7Days();
       const totalSalesAmount = await fetchTotalSales();
       const lowStock = await fetchLowStockProducts();
-      console.log('Home.jsx - Datos obtenidos:', { sales, products, salesLast7Days, totalSalesAmount, lowStock });
+      console.log('Home.jsx - Datos obtenidos:', { sales, products, /* salesLast7Days, */ totalSalesAmount, lowStock });
       setDailySales(sales || 0);
       setTotalProducts(products || 0);
-      setSalesData(salesLast7Days.length ? salesLast7Days : [0, 0, 0, 0, 0, sales || 0, 0]);
+      // Commented out setSalesData since chart is not used
+      // setSalesData(salesLast7Days.length ? salesLast7Days : [0, 0, 0, 0, 0, sales || 0, 0]);
       setTotalSales(totalSalesAmount || 0);
       setLowStockProducts(lowStock);
     } catch (error) {
       console.error('Error loading data:', error);
       setDailySales(0);
       setTotalProducts(0);
-      setSalesData([0, 0, 0, 0, 0, 0, 0]);
+      // Commented out setSalesData since chart is not used
+      // setSalesData([0, 0, 0, 0, 0, 0, 0]);
       setTotalSales(0);
       setLowStockProducts(0);
     } finally {
       setLoading(false);
       console.log('Home.jsx - Carga de datos finalizada, loading:', false);
     }
-  }, [fetchDailySales, fetchTotalProducts, fetchSalesLast7Days, fetchTotalSales, fetchLowStockProducts]);
+  }, [fetchDailySales, fetchTotalProducts, /* fetchSalesLast7Days, */ fetchTotalSales, fetchLowStockProducts]);
 
   useEffect(() => {
     fetchExchangeRate();
@@ -133,6 +138,8 @@ function Home() {
 
   const dailySalesUsd = dailySales / exchangeRate;
 
+  // Commented out chart-related code to prevent rendering
+  /*
   const today = new Date();
   const labels = Array.from({ length: 7 }, (_, i) => {
     const date = new Date(today);
@@ -203,6 +210,7 @@ function Home() {
       },
     },
   };
+  */
 
   if (loading) {
     console.log('Home.jsx - Mostrando estado de carga...');
@@ -213,7 +221,7 @@ function Home() {
     );
   }
 
-  console.log('Home.jsx - Renderizando contenido principal:', { dailySales, totalProducts, salesData, totalSales, lowStockProducts });
+  console.log('Home.jsx - Renderizando contenido principal:', { dailySales, totalProducts, /* salesData, */ totalSales, lowStockProducts });
 
   return (
     <Container>
@@ -290,9 +298,12 @@ function Home() {
         </Grid>
       </Grid>
 
+      {/* Commented out chart section to prevent rendering */}
+      {/*
       <Card sx={{ p: 2, boxShadow: 3, borderRadius: '12px', maxWidth: '800px', mx: 'auto' }}>
         <Line data={chartData} options={chartOptions} />
       </Card>
+      */}
     </Container>
   );
 }

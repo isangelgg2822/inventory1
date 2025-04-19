@@ -67,6 +67,8 @@ function DashboardProvider({ children }) {
     }
   };
 
+  // Commenting out fetchSalesLast7Days to prevent loading delays
+  /*
   const fetchSalesLast7Days = async () => {
     try {
       console.log('Fetching sales for the last 7 days...');
@@ -130,6 +132,7 @@ function DashboardProvider({ children }) {
       return Array(7).fill(0);
     }
   };
+  */
 
   const fetchTotalSales = async () => {
     try {
@@ -178,7 +181,8 @@ function DashboardProvider({ children }) {
     }
   };
 
-  const value = { fetchDailySales, fetchTotalProducts, fetchSalesLast7Days, fetchTotalSales };
+  // Commented out fetchSalesLast7Days in the value object to prevent its usage
+  const value = { fetchDailySales, fetchTotalProducts, /* fetchSalesLast7Days, */ fetchTotalSales };
 
   return (
     <DashboardContext.Provider value={value}>
