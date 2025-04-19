@@ -151,13 +151,13 @@ function Navbar({ open, setOpen }) {
             }}
           >
             <ListItemIcon sx={{ color: location.pathname === item.path ? '#ffffff' : '#ffffff99', minWidth: 48 }}>
-              {React.cloneElement(item.icon, { sx: { fontSize: 32 } })}
+              {React.cloneElement(item.icon, { sx: { fontSize: 28 } })}
             </ListItemIcon>
             <ListItemText
               primary={item.text}
               sx={{
                 color: location.pathname === item.path ? '#ffffff' : '#ffffffcc',
-                '& .MuiTypography-root': { fontSize: '1.1rem', fontWeight: 500 },
+                '& .MuiTypography-root': { fontSize: '1rem', fontWeight: 500 },
               }}
             />
           </ListItem>

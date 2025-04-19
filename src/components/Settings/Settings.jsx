@@ -183,7 +183,7 @@ function Settings() {
     <>
       <Navbar open={open} />
       <Container>
-        <Typography variant="h2" gutterBottom sx={{ fontSize: '1rem', fontWeight: 600, color: '#1976d2' }}>
+        <Typography variant="h2" gutterBottom sx={{ fontSize: '1.5rem', fontWeight: 600, color: '#1976d2' }}>
           Configuración
         </Typography>
 
