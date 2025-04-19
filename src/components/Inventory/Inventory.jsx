@@ -241,7 +241,7 @@ function Inventory() {
             value={searchTerm}
             onChange={handleSearchChange}
             variant="outlined"
-            size="medium"
+            size="small"
             sx={{ width: { xs: '100%', sm: '300px' }, backgroundColor: '#fff', borderRadius: '8px' }}
             InputProps={{
               startAdornment: (
