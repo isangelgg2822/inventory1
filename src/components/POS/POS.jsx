@@ -866,6 +866,8 @@ function PointOfSale() {
             sm: open
               ? 'calc(100% - 240px - 400px)'
               : 'calc(100% - 400px)',
+              md: 'calc(100% - 300px)', // Aprovechamos más espacio en laptops
+    
           },
           transition: 'margin-left 0.3s, margin-right 0.3s, width 0.3s',
         }}
