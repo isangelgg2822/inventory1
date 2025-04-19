@@ -113,7 +113,7 @@ function Navbar({ open, setOpen }) {
           <IconButton
             onClick={handleDrawerClose}
             sx={{
-              position: 'relative',
+              position: 'absolute',
               right: 8,
               top: 16,
               backgroundColor: '#ffffff1a',
