@@ -868,7 +868,11 @@ function PointOfSale() {
               : 'calc(100% - 400px)',
               
           },
+          
           transition: 'margin-left 0.3s, margin-right 0.3s, width 0.3s',
+          maxWidth: { xl: '1920px' },
+          mx: { xl: 'auto' },
+        
         }}
       >
         <Container
