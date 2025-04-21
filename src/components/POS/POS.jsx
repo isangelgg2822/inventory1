@@ -859,6 +859,7 @@ function PointOfSale() {
           p: { xs: 1, sm: 2 }, // Reducimos el padding general para ganar más espacio
           ml: { sm: open ? '240px' : 0 },
           mr: { sm: '400px' },
+          mxl: {sm: '1920px'},
           mt: { xs: 8, sm: 8 }, // Ajustado para TopBar
           mb: 6, // Margen inferior para Footer
           width: {
@@ -870,9 +871,7 @@ function PointOfSale() {
           },
           
           transition: 'margin-left 0.3s, margin-right 0.3s, width 0.3s',
-          maxWidth: { xl: '1920px' },
-          mx: { xl: 'auto' },
-        
+          
         }}
       >
         <Container
