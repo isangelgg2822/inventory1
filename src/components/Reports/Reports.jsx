@@ -244,7 +244,7 @@ function Reports() {
 
   return (
     <Container>
-      <Typography variant="h2" gutterBottom sx={{ fontSize: '1.5rem', fontWeight: 600 }}>
+      <Typography variant="h2" gutterBottom sx={{ fontSize: '1rem', fontWeight: 600 }}>
         Reportes
       </Typography>
 
@@ -254,7 +254,8 @@ function Reports() {
         </Typography>
         <LocalizationProvider dateAdapter={AdapterDateFns}>
           <Grid container spacing={2} sx={{ mb: 2 }}>
-            <Grid item xs={12} sm={4}>
+          <Grid item xs={12} sm={4} md={6} lg={3}>
+
               <DatePicker
                 label="Fecha de Inicio"
                 value={startDate}
