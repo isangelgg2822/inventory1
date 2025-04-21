@@ -19,6 +19,8 @@ import ResetPassword from './components/auth/ResetPassword';
 import { Box } from '@mui/material';
 import { supabase } from './supabase';
 
+
+
 function App() {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
