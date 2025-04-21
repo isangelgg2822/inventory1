@@ -120,7 +120,7 @@ function Login() {
             variant="h4"
             align="center"
             gutterBottom
-            sx={{ fontSize: '2rem', fontWeight: 600, color: '#1976d2' }}
+            sx={{ fontSize: '1.5rem', fontWeight: 600, color: '#1976d2' }}
           >
             Iniciar Sesión
           </Typography>

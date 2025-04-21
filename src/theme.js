@@ -60,7 +60,7 @@ const theme = createTheme({
         root: {
           textTransform: 'none',
           borderRadius: '8px',
-          padding: '10px 20px',
+          // padding: '10px 20px',
           boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
           transition: 'all 0.3s ease',
           '&:hover': {

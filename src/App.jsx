@@ -49,31 +49,38 @@ function App() {
 
   return (
     <ThemeProvider theme={theme}>
-      <DrawerProvider>
-        <DashboardProvider>
-          <Router>
-            <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-              {session && (
-                <>
-                  <TopBar onDrawerOpen={() => setOpen(true)} />
-                  <Navbar open={open} setOpen={setOpen} />
-                </>
-              )}
-              <Box
-                component="main"
-                sx={{
-                  flexGrow: 1,
-                  p: 3,
-                  ml: { xs: 0, sm: open ? '240px' : 0 }, // Ajustado para el ancho del Drawer (240px)
-                  mt: { xs: '80px', sm: '80px' }, // Aumentado para evitar solapamiento con TopBar
-                  pb: '80px', // Aumentado para asegurar espacio para el Footer
-                  width: {
-                    xs: '100%',
-                    sm: open ? 'calc(100% - 240px)' : '100%', // Ajustado para el Drawer
-                  },
-                  transition: 'margin-left 0.3s, width 0.3s',
-                  boxSizing: 'border-box',
-                }}
+    <DrawerProvider>
+      <DashboardProvider>
+        <Router>
+          <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+            {session && (
+              <>
+                <TopBar onDrawerOpen={() => setOpen(true)} />
+                <Navbar open={open} setOpen={setOpen} />
+              </>
+            )}
+            <Box
+              component="main"
+              sx={{
+                flexGrow: 1,
+                p: { xs: 2, sm: 3, md: 4 }, // Ajustar padding según el tamaño de pantalla
+                ml: {
+                  xs: 0,
+                  sm: open ? '240px' : 0, // Ancho del Drawer en pantallas pequeñas
+                  lg: open ? '280px' : 0, // Ancho mayor para pantallas grandes
+                },
+                mt: { xs: '64px', sm: '80px' }, // Ajustar según la altura de la TopBar
+                pb: { xs: '60px', sm: '80px' }, // Espacio para el Footer
+                width: {
+                  xs: '100%',
+                  sm: open ? 'calc(100% - 240px)' : '100%',
+                  lg: open ? 'calc(100% - 280px)' : '100%', // Ajustar para pantallas grandes
+                },
+                transition: 'margin-left 0.3s, width 0.3s',
+                boxSizing: 'border-box',
+                maxWidth: { xl: '1920px' }, // Limitar el ancho máximo en pantallas muy grandes
+                mx: { xl: 'auto' }, // Centrar el contenido en pantallas extra grandes
+              }}
               >
                 <Routes>
                   <Route path="/login" element={<Login />} />

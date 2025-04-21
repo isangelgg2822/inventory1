@@ -162,7 +162,7 @@ function Settings() {
         <Typography variant="h1" gutterBottom sx={{ fontSize: '1.5rem', fontWeight: 600 }}>
           Configuración
         </Typography>
-        <Box sx={{ backgroundColor: '#ffebee', p: 3, borderRadius: '12px', mb: 2 }}>
+        <Box sx={{ backgroundColor: '#ffebee', p: 2, borderRadius: '12px', mb: 1 }}>
           <Typography variant="h6" color="error">
             {error}
           </Typography>
