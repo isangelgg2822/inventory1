@@ -274,14 +274,14 @@ function Inventory() {
             <TableBody>
               {filteredProducts.map((product) => (
                 <TableRow key={product.id}>
-                  <TableCell sx={{ fontSize: '0.7rem' }}>{product.name}</TableCell>
-                  <TableCell sx={{ fontSize: '0.7rem' }}>{product.category || '-'}</TableCell>
-                  <TableCell sx={{ fontSize: '0.7rem' }}>{product.quantity}</TableCell>
-                  <TableCell sx={{ fontSize: '0.7rem' }}>${product.price.toFixed(2)}</TableCell>
+                  <TableCell sx={{ fontSize: '0.8m' }}>{product.name}</TableCell>
+                  <TableCell sx={{ fontSize: '0.8m' }}>{product.category || '-'}</TableCell>
+                  <TableCell sx={{ fontSize: '0.8m' }}>{product.quantity}</TableCell>
+                  <TableCell sx={{ fontSize: '0.8m' }}>${product.price.toFixed(2)}</TableCell>
                   <TableCell>
                     <Tooltip title="Editar">
                       <IconButton color="primary" onClick={() => openEditModalHandler(product)}>
-                        <Edit sx={{ fontSize: 24 }} />
+                        <Edit sx={{ fontSize: 26}} />
                       </IconButton>
                     </Tooltip>
                     <Tooltip title="Eliminar">
@@ -292,7 +292,7 @@ function Inventory() {
                           setOpenDeleteDialog(true);
                         }}
                       >
-                        <Delete sx={{ fontSize: 24 }} />
+                        <Delete sx={{ fontSize: 26}} />
                       </IconButton>
                     </Tooltip>
                   </TableCell>

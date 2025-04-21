@@ -900,7 +900,7 @@ function PointOfSale() {
           p: { xs: 1, sm: 2, md: 3, lg: 4 },
           ml: { sm: open ? '240px' : 0, lg: open ? '280px' : 0 },
           mr: { sm: '300px', md: '400px', lg: '450px', xl: '500px' },
-          mt: { xs: 8, sm: 8, md: 10 },
+          mt: { xs: 8, sm: 8, md: 10 }, 
           mb: { xs: 4, sm: 6 },
           width: {
             xs: '100%',
@@ -926,7 +926,7 @@ function PointOfSale() {
           >
             Punto de Venta
           </Typography>
-          <Divider sx={{ mb: { xs: 2, sm: 3, md: 4 }, borderColor: '#e0e0e0' }} />
+          <Divider sx={{ mb: { xs: 2, sm: 3, md: 6},borderColor: '#e0e0e0' }} />
           {isMobile && (
             <Button
               variant="contained"
