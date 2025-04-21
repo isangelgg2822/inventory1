@@ -229,7 +229,7 @@
 import React, { useState } from 'react';
 import { supabase } from '../../supabase';
 import { useNavigate } from 'react-router-dom';
-import './Login.css';
+import '../../Login.css';
 
 function Login() {
   const [email, setEmail] = useState('');
