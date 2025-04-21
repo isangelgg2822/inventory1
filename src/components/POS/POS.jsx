@@ -692,15 +692,15 @@ function PointOfSale() {
   }
 
   const cartContent = (
-    <Box sx={{ p: 3, backgroundColor: '#f5f5f5', height: '100%' }}>
-      <Typography variant="h5" sx={{ mb: 2, fontWeight: 'bold', color: '#1976d2', textAlign: 'center', fontSize: { xs: '1.2rem', sm: '1.5rem' } }}>
+    <Box sx={{ p: { xs: 2, md: 3 }, backgroundColor: '#f5f5f5', height: '100%' }}>
+      <Typography variant="h5" sx={{ mb: 2, fontWeight: 'bold', color: '#1976d2', textAlign: 'center', fontSize: { xs: '1.2rem', sm: '1.5rem', md: '1.8rem' } }}>
         Carrito De Compras
       </Typography>
       <Box
         sx={{
           display: 'flex',
           flexDirection: { xs: 'column', sm: 'row' },
-          gap: 2,
+          gap: { xs: 1, sm: 2, md: 3 },
           mb: 3,
           alignItems: { xs: 'stretch', sm: 'center' },
         }}
@@ -713,7 +713,11 @@ function PointOfSale() {
             variant="outlined"
             size="medium"
             fullWidth
-            sx={{ backgroundColor: '#fff', borderRadius: '8px', '& .MuiInputBase-input': { fontSize: '0.9rem', padding: '10px' } }}
+            sx={{
+              backgroundColor: '#fff',
+              borderRadius: '8px',
+              '& .MuiInputBase-input': { fontSize: { xs: '0.9rem', md: '1rem' }, padding: { xs: '8px', md: '10px' } },
+            }}
           />
           {filteredProducts.length > 0 && (
             <List
@@ -750,28 +754,39 @@ function PointOfSale() {
           variant="outlined"
           size="small"
           type="number"
-          sx={{ width: { xs: '100%', sm: '80px' }, backgroundColor: '#fff', borderRadius: '8px' }}
+          sx={{
+            width: { xs: '100%', sm: '80px', md: '100px' },
+            backgroundColor: '#fff',
+            borderRadius: '8px',
+            '& .MuiInputBase-input': { fontSize: { xs: '0.9rem', md: '1rem' } },
+          }}
         />
         <Button
           variant="contained"
           color="primary"
           onClick={addToCart}
-          sx={{ width: { xs: '100%', sm: 'auto' }, whiteSpace: 'nowrap', py: 1, px: 2, fontSize: '0.8rem' }}
+          sx={{
+            width: { xs: '100%', sm: 'auto' },
+            whiteSpace: 'nowrap',
+            py: { xs: 1, md: 1.5 },
+            px: { xs: 2, md: 3 },
+            fontSize: { xs: '0.8rem', md: '1rem' },
+          }}
         >
           Añadir al Carrito
         </Button>
       </Box>
 
       {cart.length === 0 ? (
-        <Typography color="text.secondary" sx={{ textAlign: 'center', fontSize: '0.8rem' }}>
+        <Typography color="text.secondary" sx={{ textAlign: 'center', fontSize: { xs: '0.8rem', md: '1rem' } }}>
           El carrito está vacío
         </Typography>
       ) : (
-        <Box sx={{ fontFamily: 'monospace', fontSize: { xs: '12px', sm: '14px' }, lineHeight: 1.4 }}>
-          <Typography sx={{ fontSize: { xs: '14px', sm: '16px' }, fontWeight: 'bold', textAlign: 'center', mb: 1 }}>
+        <Box sx={{ fontFamily: 'monospace', fontSize: { xs: '12px', sm: '14px', md: '16px' }, lineHeight: 1.4 }}>
+          <Typography sx={{ fontSize: { xs: '14px', sm: '16px', md: '18px' }, fontWeight: 'bold', textAlign: 'center', mb: 1 }}>
             Dxtodito C.A
           </Typography>
-          <Typography sx={{ fontSize: { xs: '12px', sm: '14px' }, textAlign: 'center', mb: 1 }}>
+          <Typography sx={{ fontSize: { xs: '12px', sm: '14px', md: '16px' }, textAlign: 'center', mb: 1 }}>
             Cajero: {cashierName}
           </Typography>
           <Divider sx={{ borderStyle: 'dashed', my: 1, borderColor: '#666' }} />
@@ -788,10 +803,10 @@ function PointOfSale() {
                   '&:hover': { backgroundColor: '#e3f2fd' },
                 }}
               >
-                <Typography sx={{ flex: 1, fontSize: { xs: '12px', sm: '14px' } }}>
+                <Typography sx={{ flex: 1, fontSize: { xs: '12px', sm: '14px', md: '16px' } }}>
                   {item.name} x {item.quantity}
                 </Typography>
-                <Typography sx={{ fontSize: { xs: '12px', sm: '14px' }, mr: 1 }}>
+                <Typography sx={{ fontSize: { xs: '12px', sm: '14px', md: '16px' }, mr: 1 }}>
                   Bs. {item.totalBs.toFixed(2)}
                 </Typography>
                 <Tooltip title="Eliminar del Carrito">
@@ -803,7 +818,7 @@ function PointOfSale() {
             ))}
           </Box>
           <Divider sx={{ borderStyle: 'dashed', my: 1, borderColor: '#666' }} />
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', fontSize: { xs: '12px', sm: '14px' }, mb: 0.5 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', fontSize: { xs: '12px', sm: '14px', md: '16px' }, mb: 0.5 }}>
             <Typography>SUBTOTAL Bs.</Typography>
             <Typography>Bs. {cartSubtotal.toFixed(2)}</Typography>
           </Box>
@@ -812,7 +827,7 @@ function PointOfSale() {
             sx={{
               display: 'flex',
               justifyContent: 'space-between',
-              fontSize: { xs: '14px', sm: '16px' },
+              fontSize: { xs: '14px', sm: '16px', md: '18px' },
               fontWeight: 'bold',
               mb: 2,
             }}
@@ -827,6 +842,7 @@ function PointOfSale() {
               value={paymentMethod}
               label="Método de Pago"
               onChange={(e) => setPaymentMethod(e.target.value)}
+              sx={{ fontSize: { xs: '0.9rem', md: '1rem' } }}
             >
               {paymentOptions.map((method) => (
                 <MenuItem key={method} value={method}>
@@ -840,7 +856,7 @@ function PointOfSale() {
             color="primary"
             onClick={registerSale}
             startIcon={<ReceiptIcon />}
-            sx={{ width: '100%', py: 1, fontSize: '0.8rem' }}
+            sx={{ width: '100%', py: { xs: 1, md: 1.5 }, fontSize: { xs: '0.8rem', md: '1rem' } }}
             disabled={cart.length === 0 || !paymentMethod}
           >
             Registrar Venta y Generar Ticket
@@ -856,35 +872,32 @@ function PointOfSale() {
         component="main"
         sx={{
           flexGrow: 1,
-          p: { xs: 1, sm: 2 }, // Reducimos el padding general para ganar más espacio
-          ml: { sm: open ? '240px' : 0 },
-          mr: { sm: '400px' },
-          mxl: {sm: '1920px'},
-          mt: { xs: 8, sm: 8 }, // Ajustado para TopBar
-          mb: 6, // Margen inferior para Footer
+          p: { xs: 1, sm: 2, md: 3 },
+          ml: { sm: open ? '240px' : 0, lg: open ? '280px' : 0 },
+          mr: { sm: '400px', md: '450px', lg: '500px' },
+          mt: { xs: 8, sm: 8, md: 10 },
+          mb: 6,
           width: {
             xs: '100%',
-            sm: open
-              ? 'calc(100% - 240px - 400px)'
-              : 'calc(100% - 400px)',
-              
+            sm: open ? 'calc(100% - 240px - 400px)' : 'calc(100% - 400px)',
+            lg: open ? 'calc(100% - 280px - 500px)' : 'calc(100% - 500px)',
           },
-          
+          maxWidth: { xl: '1920px' },
+          mx: { xl: 'auto' },
           transition: 'margin-left 0.3s, margin-right 0.3s, width 0.3s',
-          
         }}
       >
         <Container
           sx={{
-            px: { xs: 0, sm: 1, md: 2 }, // Reducimos aún más el padding lateral
-            maxWidth: '100%', // Eliminamos maxWidth="lg" para usar todo el ancho disponible
+            px: { xs: 0, sm: 1, md: 2, lg: 3 },
+            maxWidth: '100%',
           }}
         >
           <Typography
             variant="h1"
             gutterBottom
             sx={{
-              fontSize: { xs: '1.5rem', sm: '1.8rem', md: '2rem' },
+              fontSize: { xs: '1.5rem', sm: '1.8rem', md: '2rem', lg: '2.5rem' },
               fontWeight: 600,
               color: '#1976d2',
             }}
@@ -908,7 +921,7 @@ function PointOfSale() {
             sx={{
               mt: 4,
               mb: 2,
-              fontSize: { xs: '1.2rem', sm: '1.5rem', md: '1.5rem' },
+              fontSize: { xs: '1.2rem', sm: '1.5rem', md: '1.8rem', lg: '2rem' },
               fontWeight: 500,
               color: '#1976d2',
             }}
@@ -919,19 +932,19 @@ function PointOfSale() {
             <Table size={isMobile ? 'small' : 'medium'}>
               <TableHead>
                 <TableRow>
-                  <TableCell sx={{ fontWeight: 600, fontSize: { xs: '0.8rem', sm: '1rem' }, py: 1.5 }}>
+                  <TableCell sx={{ fontWeight: 600, fontSize: { xs: '0.8rem', sm: '1rem', md: '1.1rem' }, py: 1.5 }}>
                     Número de Venta
                   </TableCell>
-                  <TableCell sx={{ fontWeight: 600, fontSize: { xs: '0.8rem', sm: '1rem' }, py: 1.5 }}>
+                  <TableCell sx={{ fontWeight: 600, fontSize: { xs: '0.8rem', sm: '1rem', md: '1.1rem' }, py: 1.5 }}>
                     Fecha
                   </TableCell>
-                  <TableCell sx={{ fontWeight: 600, fontSize: { xs: '0.8rem', sm: '1rem' }, py: 1.5 }}>
+                  <TableCell sx={{ fontWeight: 600, fontSize: { xs: '0.8rem', sm: '1rem', md: '1.1rem' }, py: 1.5 }}>
                     Productos
                   </TableCell>
-                  <TableCell sx={{ fontWeight: 600, fontSize: { xs: '0.8rem', sm: '1rem' }, py: 1.5 }}>
+                  <TableCell sx={{ fontWeight: 600, fontSize: { xs: '0.8rem', sm: '1rem', md: '1.1rem' }, py: 1.5 }}>
                     Total (Bs.)
                   </TableCell>
-                  <TableCell sx={{ fontWeight: 600, fontSize: { xs: '0.8rem', sm: '1rem' }, py: 1.5 }}>
+                  <TableCell sx={{ fontWeight: 600, fontSize: { xs: '0.8rem', sm: '1rem', md: '1.1rem' }, py: 1.5 }}>
                     Acciones
                   </TableCell>
                 </TableRow>
@@ -939,7 +952,7 @@ function PointOfSale() {
               <TableBody>
                 {salesGroups.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} sx={{ textAlign: 'center', fontSize: { xs: '0.8rem', sm: '1rem' }, py: 2 }}>
+                    <TableCell colSpan={5} sx={{ textAlign: 'center', fontSize: { xs: '0.8rem', sm: '1rem', md: '1.1rem' }, py: 2 }}>
                       No hay ventas recientes.
                     </TableCell>
                   </TableRow>
@@ -964,16 +977,16 @@ function PointOfSale() {
 
       <Box
         sx={{
-          width: '400px',
+          width: { sm: '400px', md: '450px', lg: '500px' },
           bgcolor: 'background.paper',
           borderLeft: '1px solid',
           borderColor: 'divider',
-          height: 'calc(100vh - 48px)', // Ajustado para dejar espacio al Footer
+          height: 'calc(100vh - 48px)',
           overflowY: 'auto',
           position: 'fixed',
           right: 0,
           top: 0,
-          mt: { xs: 8, sm: 8 }, // Ajustado para TopBar
+          mt: { xs: 8, sm: 8, md: 10 },
           zIndex: 1000,
           display: { xs: 'none', sm: 'block' },
         }}
@@ -987,10 +1000,10 @@ function PointOfSale() {
         onClose={() => setCartDrawerOpen(false)}
         sx={{
           '& .MuiDrawer-paper': {
-            width: 'min(400px, 100%)',
+            width: { xs: 'min(400px, 100%)', sm: '400px' },
             bgcolor: 'background.paper',
-            height: 'calc(100% - 48px)', // Ajustado para dejar espacio al Footer
-            top: { xs: 64, sm: 64 }, // Ajustado para TopBar (64px es la altura del TopBar)
+            height: 'calc(100% - 48px)',
+            top: { xs: 64, sm: 64 },
           },
           display: { xs: 'block', sm: 'none' },
         }}
