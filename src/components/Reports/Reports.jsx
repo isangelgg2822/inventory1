@@ -244,7 +244,7 @@ function Reports() {
 
   return (
     <Container>
-      <Typography variant="h2" gutterBottom sx={{ fontSize: '1rem', fontWeight: 600 }}>
+      <Typography variant="h2" gutterBottom sx={{ fontSize: '2rem',tWeight: 600 }}>
         Reportes
       </Typography>
 
