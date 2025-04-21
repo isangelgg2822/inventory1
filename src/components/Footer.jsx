@@ -6,8 +6,8 @@ function Footer() {
     <Box
       component="footer"
       sx={{
-        py: 2,
-        px: 2,
+        py: 1,
+        px: 1,
         mt: 'auto',
         backgroundColor: '#1a2526', // Coincide con el tema oscuro de tu Navbar
         color: '#ffffff',
