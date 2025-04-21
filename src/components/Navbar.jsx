@@ -136,8 +136,8 @@ function Navbar({ open, setOpen }) {
               if (isMobile) handleDrawerClose();
             }}
             sx={{
-              py: 1.5,
-              px: 2,
+              py: 1,
+              px: 1.5,
               my: 0.5,
               borderRadius: '8px',
               '&:hover': {
