@@ -57,7 +57,7 @@
   }
   
   .input-icon {
-    position: absolute;
+    position: relative;
     left: 10px;
     top: 50%;
     transform: translateY(-50%);
