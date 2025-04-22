@@ -52,19 +52,22 @@ const SaleRow = memo(({ group, index, products, reprintTicket, setSelectedSaleGr
 
   return (
     <TableRow key={group.sale_group_id}>
-      <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.9rem', md: '1rem' }, py: { xs: 1, sm: 1.5 } }}>
+      <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.9rem', md: '1rem' }, py: { xs: 0.2, sm: 0.4 } }}>
         Venta #{index + 1}
       </TableCell>
-      <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.9rem', md: '1rem' }, py: { xs: 1, sm: 1.5 } }}>
+      <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.9rem', md: '1rem' }, py: { xs: 0.2, sm: 0.4 } }}>
         {formatDate(group.date)}
       </TableCell>
-      <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.9rem', md: '1rem' }, py: { xs: 1, sm: 1.5 } }}>
+      <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.9rem', md: '1rem' }, py: { xs: 0.2, sm: 0.4 } }}>
         {productNames.join(', ')}
       </TableCell>
-      <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.9rem', md: '1rem' }, py: { xs: 1, sm: 1.5 } }}>
+      <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.9rem', md: '1rem' }, py: { xs: 0.2, sm: 0.4 } }}>
         {group.total.toFixed(2)}
       </TableCell>
-      <TableCell sx={{ py: { xs: 1, sm: 1.5 } }}>
+      <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.9rem', md: '1rem' }, py: { xs: 0.2, sm: 0.4 } }}>
+        {group.user_name || 'Desconocido'}
+      </TableCell>
+      <TableCell sx={{ py: { xs: 0.2, sm: 0.4 } }}>
         <Tooltip title="Reimprimir Ticket">
           <IconButton color="primary" onClick={() => reprintTicket(group)}>
             <PrintIcon sx={{ fontSize: { xs: 24, md: 28 } }} />
@@ -188,7 +191,7 @@ function PointOfSale() {
     }
   }, [navigate, setError, setExchangeRate]);
 
-  const handleSalesData = useCallback((sales) => {
+  const handleSalesData = useCallback((sales, userMap) => {
     if (!sales || sales.length === 0) {
       setSalesGroups([]);
       return;
@@ -213,6 +216,8 @@ function PointOfSale() {
           items: [],
           total: 0,
           date: sale.created_at || new Date(sale.id).toISOString(),
+          user_id: sale.user_id,
+          user_name: userMap[sale.user_id] || 'Desconocido', // Nombre del usuario
         };
       }
       acc[groupId].items.push(sale);
@@ -225,6 +230,24 @@ function PointOfSale() {
   }, [setSalesGroups]);
 
   const fetchSalesGroups = useCallback(async () => {
+    // Primero, obtener los usuarios para mapear user_id a first_name
+    const { data: users, error: usersError } = await supabase
+      .from('users')
+      .select('id, first_name');
+
+    if (usersError) {
+      console.error('Error fetching users:', usersError);
+      setError(`Error al recuperar los usuarios: ${usersError.message} (Código: ${usersError.code})`);
+      setSalesGroups([]);
+      return;
+    }
+
+    // Crear un mapa de user_id a first_name
+    const userMap = users.reduce((acc, user) => {
+      acc[user.id] = user.first_name || 'Desconocido';
+      return acc;
+    }, {});
+
     const { data: sales, error } = await supabase
       .from('sales')
       .select('*')
@@ -247,7 +270,7 @@ function PointOfSale() {
           return;
         }
 
-        handleSalesData(fallbackSales);
+        handleSalesData(fallbackSales, userMap);
         return;
       }
 
@@ -257,7 +280,7 @@ function PointOfSale() {
       return;
     }
 
-    handleSalesData(sales);
+    handleSalesData(sales, userMap);
   }, [handleSalesData, setError, setSalesGroups]);
 
   useEffect(() => {
@@ -653,9 +676,9 @@ function PointOfSale() {
             <span>SUBTOTAL Bs.</span>
             <span>Bs. ${(saleDetails?.subtotal ?? 0).toFixed(2)}</span>
           </div>
-          <div style="display: flex; justify-content: space-between; margin: 2px 0;">
-            <span>IVA (16%)</span>
-            <span>Bs. ${(saleDetails?.tax ?? 0).toFixed(2)}</span>
+          //  <div style="display: flex; justify-content: space-between; margin: 2px 0;">
+            //  <span>IVA (16%)</span>
+            // <span>Bs. ${(saleDetails?.tax ?? 0).toFixed(2)}</span>
           </div>
           <div class="divider"></div>
           <div style="display: flex; justify-content: space-between;" class="total">
@@ -737,7 +760,7 @@ function PointOfSale() {
             sx={{
               backgroundColor: '#fff',
               borderRadius: '8px',
-              '& .MuiInputBase-input': { fontSize: { xs: '0.8rem', sm: '0.9rem', md: '1rem' }, padding: { xs: '8px', sm: '10px' } },
+              '& .MuiInputBase-input': { fontSize: { xs: '0.8rem', sm: '0.9rem', md: '1rem' }, padding: { xs: '8px', sm: '10px' } }, py: { md: 0.8 },
             }}
           />
           {filteredProducts.length > 0 && (
@@ -916,7 +939,7 @@ function PointOfSale() {
       >
         <Container sx={{ px: { xs: 0, sm: 1, md: 2, lg: 3 }, maxWidth: '100%' }}>
           <Typography
-            variant="h1"
+            variant="h2"
             gutterBottom
             sx={{
               fontSize: { xs: '1.2rem', sm: '1.5rem', md: '2rem', lg: '2.5rem' },
@@ -938,7 +961,9 @@ function PointOfSale() {
                 mb: { xs: 2, sm: 3, md: 4 },
                 py: { xs: 0.8, sm: 1 },
                 fontSize: { xs: '0.7rem', sm: '0.8rem' },
+                
               }}
+              
             >
               Ver Carrito ({cart.length})
             </Button>
@@ -948,7 +973,7 @@ function PointOfSale() {
             variant="h2"
             sx={{
               mt: { xs: 2, sm: 3, md: 4 },
-              mb: { xs: 1, sm: 2 },
+              mb: { xs: 0.5, sm: 1 }, // Reducido el margen inferior
               fontSize: { xs: '1rem', sm: '1.2rem', md: '1.5rem', lg: '2rem' },
               fontWeight: 500,
               color: '#1976d2',
@@ -956,23 +981,26 @@ function PointOfSale() {
           >
             Ventas Recientes
           </Typography>
-          <TableContainer component={Paper} sx={{ borderRadius: '12px', boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)' }}>
-            <Table size={isMobile ? 'small' : 'medium'}>
+          <TableContainer component={Paper} sx={{ borderRadius: '12px', boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)', mt: 0 }}>
+            <Table size={isMobile ? 'small' : 'medium'} sx={{ '& .MuiTableCell-root': { padding: '2px 16px' } }}>
               <TableHead>
                 <TableRow>
-                  <TableCell sx={{ fontWeight: 600, fontSize: { xs: '0.75rem', sm: '0.9rem', md: '1rem', lg: '1.1rem' }, py: { xs: 1, sm: 1.5 } }}>
+                  <TableCell sx={{ fontWeight: 600, fontSize: { xs: '0.75rem', sm: '0.9rem', md: '1rem', lg: '1.1rem' }, py: { xs: 0.2, sm: 0.4 } }}>
                     Número de Venta
                   </TableCell>
-                  <TableCell sx={{ fontWeight: 600, fontSize: { xs: '0.75rem', sm: '0.9rem', md: '1rem', lg: '1.1rem' }, py: { xs: 1, sm: 1.5 } }}>
+                  <TableCell sx={{ fontWeight: 600, fontSize: { xs: '0.75rem', sm: '0.9rem', md: '1rem', lg: '1.1rem' }, py: { xs: 0.2, sm: 0.4 } }}>
                     Fecha
                   </TableCell>
-                  <TableCell sx={{ fontWeight: 600, fontSize: { xs: '0.75rem', sm: '0.9rem', md: '1rem', lg: '1.1rem' }, py: { xs: 1, sm: 1.5 } }}>
+                  <TableCell sx={{ fontWeight: 600, fontSize: { xs: '0.75rem', sm: '0.9rem', md: '1rem', lg: '1.1rem' }, py: { xs: 0.2, sm: 0.4 } }}>
                     Productos
                   </TableCell>
-                  <TableCell sx={{ fontWeight: 600, fontSize: { xs: '0.75rem', sm: '0.9rem', md: '1rem', lg: '1.1rem' }, py: { xs: 1, sm: 1.5 } }}>
+                  <TableCell sx={{ fontWeight: 600, fontSize: { xs: '0.75rem', sm: '0.9rem', md: '1rem', lg: '1.1rem' }, py: { xs: 0.2, sm: 0.4 } }}>
                     Total (Bs.)
                   </TableCell>
-                  <TableCell sx={{ fontWeight: 600, fontSize: { xs: '0.75rem', sm: '0.9rem', md: '1rem', lg: '1.1rem' }, py: { xs: 1, sm: 1.5 } }}>
+                  <TableCell sx={{ fontWeight: 600, fontSize: { xs: '0.75rem', sm: '0.9rem', md: '1rem', lg: '1.1rem' }, py: { xs: 0.2, sm: 0.4 } }}>
+                    Cajero
+                  </TableCell>
+                  <TableCell sx={{ fontWeight: 600, fontSize: { xs: '0.75rem', sm: '0.9rem', md: '1rem', lg: '1.1rem' }, py: { xs: 0.2, sm: 0.4 } }}>
                     Acciones
                   </TableCell>
                 </TableRow>
@@ -980,7 +1008,7 @@ function PointOfSale() {
               <TableBody>
                 {salesGroups.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} sx={{ textAlign: 'center', fontSize: { xs: '0.75rem', sm: '0.9rem', md: '1rem' }, py: 2 }}>
+                    <TableCell colSpan={6} sx={{ textAlign: 'center', fontSize: { xs: '0.75rem', sm: '0.9rem', md: '1rem' }, py: { xs: 0.2, sm: 0.4 } }}>
                       No hay ventas recientes.
                     </TableCell>
                   </TableRow>
@@ -1061,7 +1089,7 @@ function PointOfSale() {
             sx={{
               p: 1,
               fontFamily: 'monospace',
-              fontSize: { xs: '8px', sm: '10px', md: '12px' },
+              fontSize: { saputo: '8px', sm: '10px', md: '12px' },
               lineHeight: 1.2,
               width: '100mm',
               textAlign: 'center',
@@ -1110,10 +1138,10 @@ function PointOfSale() {
               <Typography>SUBTOTAL Bs.</Typography>
               <Typography>Bs. {(saleDetails?.subtotal ?? 0).toFixed(2)}</Typography>
             </Box>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', fontSize: { xs: '8px', sm: '10px', md: '12px' } }}>
+            {/* <Box sx={{ display: 'flex', justifyContent: 'space-between', fontSize: { xs: '8px', sm: '10px', md: '12px' } }}>
               <Typography>IVA (16%)</Typography>
               <Typography>Bs. {(saleDetails?.tax ?? 0).toFixed(2)}</Typography>
-            </Box>
+            </Box> */}
             <Divider sx={{ borderStyle: 'dashed', my: 0.5, borderColor: '#666' }} />
             <Box
               sx={{

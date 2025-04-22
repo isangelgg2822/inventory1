@@ -259,40 +259,33 @@ function Login() {
       }
 
       if (data.user) {
+        // Convertir el id del usuario (UUID) a texto
+        const userId = data.user.id.toString();
+
         // Verificar si el usuario existe en la tabla `users`
         const { data: existingUser, error: fetchError } = await supabase
           .from('users')
-          .select('id')
-          .eq('id', data.user.id)
+          .select('id, role') // También seleccionamos el rol para verificarlo
+          .eq('id', userId)
           .single();
 
-        if (fetchError && fetchError.code !== 'PGRST116') {
+        if (fetchError) {
           console.error('Error al verificar usuario en la tabla users:', fetchError);
           setError('Error al verificar los datos del usuario: ' + fetchError.message);
           setLoading(false);
           return;
         }
 
-        // Si no existe, agregar el usuario a la tabla `users`
+        // Si el usuario no existe en `users`, el trigger handle_new_user debería haberlo creado
+        // No necesitamos insertar manualmente, pero podemos mostrar un mensaje si no se encuentra
         if (!existingUser) {
-          const { error: insertError } = await supabase.from('users').insert([
-            {
-              id: data.user.id,
-              email: data.user.email,
-              first_name: data.user.email.split('@')[0], // Usamos el email como nombre por defecto
-              created_at: new Date().toISOString(),
-            },
-          ]);
-
-          if (insertError) {
-            console.error('Error al agregar usuario a la tabla users:', insertError);
-            setError('Error al guardar los datos del usuario: ' + insertError.message);
-            setLoading(false);
-            return;
-          }
+          setError('Usuario no encontrado en la base de datos. Por favor, contacta al administrador.');
+          setLoading(false);
+          return;
         }
 
         console.log('Usuario autenticado:', data.user);
+        console.log('Rol del usuario:', existingUser.role);
         navigate('/'); // Redirige a la página principal después de iniciar sesión
       }
     } catch (err) {

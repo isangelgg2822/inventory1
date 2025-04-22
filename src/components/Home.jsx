@@ -138,79 +138,79 @@ function Home() {
 
   const dailySalesUsd = dailySales / exchangeRate;
 
-  // Commented out chart-related code to prevent rendering
-  /*
-  const today = new Date();
-  const labels = Array.from({ length: 7 }, (_, i) => {
-    const date = new Date(today);
-    date.setDate(today.getDate() - (6 - i));
-    return `${date.getDate()}/${date.getMonth() + 1}`;
-  });
+   // Commented out chart-related code to prevent rendering
+  
+  // const today = new Date();
+  // const labels = Array.from({ length: 7 }, (_, i) => {
+  //   const date = new Date(today);
+  //   date.setDate(today.getDate() - (6 - i));
+  //   return `${date.getDate()}/${date.getMonth() + 1}`;
+  // });
 
-  const chartData = {
-    labels,
-    datasets: [
-      {
-        label: 'Ventas Diarias (Bs.)',
-        data: salesData,
-        borderColor: '#1976d2',
-        backgroundColor: 'rgba(25, 118, 210, 0.2)',
-        fill: true,
-        tension: 0.3,
-        pointRadius: 5,
-        pointHoverRadius: 8,
-      },
-    ],
-  };
+  // const chartData = {
+  //   labels,
+  //   datasets: [
+  //     {
+  //       label: 'Ventas Diarias (Bs.)',
+  //       data: salesData,
+  //       borderColor: '#1976d2',
+  //       backgroundColor: 'rgba(25, 118, 210, 0.2)',
+  //       fill: true,
+  //       tension: 0.3,
+  //       pointRadius: 5,
+  //       pointHoverRadius: 8,
+  //     },
+  //   ],
+  // };
 
-  const chartOptions = {
-    responsive: true,
-    plugins: {
-      legend: {
-        position: 'top',
-        labels: {
-          color: '#2d3748',
-          font: { size: 14 },
-        },
-      },
-      title: {
-        display: true,
-        text: 'Tendencia de Ventas (Últimos 7 Días)',
-        font: { size: 16 },
-        color: '#2d3748',
-        padding: { top: 10, bottom: 20 },
-      },
-      tooltip: {
-        backgroundColor: '#2d3748',
-        titleColor: '#fff',
-        bodyColor: '#fff',
-      },
-    },
-    scales: {
-      y: {
-        beginAtZero: true,
-        title: {
-          display: true,
-          text: 'Ventas (Bs.)',
-          color: '#2d3748',
-          font: { size: 14 },
-        },
-        grid: { color: 'rgba(0, 0, 0, 0.05)' },
-        ticks: { color: '#2d3748' },
-      },
-      x: {
-        title: {
-          display: true,
-          text: 'Fecha',
-          color: '#2d3748',
-          font: { size: 14 },
-        },
-        grid: { display: false },
-        ticks: { color: '#2d3748' },
-      },
-    },
-  };
-  */
+  // const chartOptions = {
+  //   responsive: true,
+  //   plugins: {
+  //     legend: {
+  //       position: 'top',
+  //       labels: {
+  //         color: '#2d3748',
+  //         font: { size: 14 },
+  //       },
+  //     },
+  //     title: {
+  //       display: true,
+  //       text: 'Tendencia de Ventas (Últimos 7 Días)',
+  //       font: { size: 16 },
+  //       color: '#2d3748',
+  //       padding: { top: 10, bottom: 20 },
+  //     },
+  //     tooltip: {
+  //       backgroundColor: '#2d3748',
+  //       titleColor: '#fff',
+  //       bodyColor: '#fff',
+  //     },
+  //   },
+  //   scales: {
+  //     y: {
+  //       beginAtZero: true,
+  //       title: {
+  //         display: true,
+  //         text: 'Ventas (Bs.)',
+  //         color: '#2d3748',
+  //         font: { size: 14 },
+  //       },
+  //       grid: { color: 'rgba(0, 0, 0, 0.05)' },
+  //       ticks: { color: '#2d3748' },
+  //     },
+  //     x: {
+  //       title: {
+  //         display: true,
+  //         text: 'Fecha',
+  //         color: '#2d3748',
+  //         font: { size: 14 },
+  //       },
+  //       grid: { display: false },
+  //       ticks: { color: '#2d3748' },
+  //     },
+  //   },
+  // };
+ 
 
   if (loading) {
     console.log('Home.jsx - Mostrando estado de carga...');

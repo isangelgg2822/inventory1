@@ -36,17 +36,17 @@ const theme = createTheme({
   typography: {
     fontFamily: '"Poppins", "Roboto", "Helvetica", "Arial", sans-serif',
     h1: {
-      fontSize: '1.5rem',
+      fontSize: '2rem',
       fontWeight: 600,
       color: '#2d3748',
     },
     h2: {
-      fontSize: '1rem',
+      fontSize: '1.2m',
       fontWeight: 500,
       color: '#2d3748',
     },
     h6: {
-      fontSize: '0.9rem',
+      fontSize: '1em',
       fontWeight: 500,
     },
     body1: {
@@ -102,11 +102,11 @@ const theme = createTheme({
       styleOverrides: {
         root: {
           borderBottom: 'none',
-          padding: '12px',
+          padding: '5px',
         },
         head: {
           backgroundColor: '#e3f2fd',
-          color: '#1976d2',
+          color: '#black',
           fontWeight: 600,
         },
       },
@@ -119,6 +119,7 @@ const theme = createTheme({
           borderRadius: '8px',
           '&:nth-of-type(even)': {
             backgroundColor: '#f9f9f9',
+            
           },
           '&:hover': {
             backgroundColor: '#e3f2fd',

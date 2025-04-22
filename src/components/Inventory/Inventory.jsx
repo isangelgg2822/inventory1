@@ -274,10 +274,10 @@ function Inventory() {
             <TableBody>
               {filteredProducts.map((product) => (
                 <TableRow key={product.id}>
-                  <TableCell sx={{ fontSize: '0.8m' }}>{product.name}</TableCell>
-                  <TableCell sx={{ fontSize: '0.8m' }}>{product.category || '-'}</TableCell>
-                  <TableCell sx={{ fontSize: '0.8m' }}>{product.quantity}</TableCell>
-                  <TableCell sx={{ fontSize: '0.8m' }}>${product.price.toFixed(2)}</TableCell>
+                  <TableCell sx={{ fontSize: '0.8rem'  }}>{product.name}</TableCell>
+                  <TableCell sx={{ fontSize: '0.8rem'  }}>{product.category || '-'}</TableCell>
+                  <TableCell sx={{ fontSize: '0.8rem' }}>{product.quantity}</TableCell>
+                  <TableCell sx={{ fontSize: '0.8rem'  }}>${product.price.toFixed(2)}</TableCell>
                   <TableCell>
                     <Tooltip title="Editar">
                       <IconButton color="primary" onClick={() => openEditModalHandler(product)}>
