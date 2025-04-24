@@ -39,7 +39,7 @@ import { useDrawer } from '../../context/DrawerHooks';
 import { useNavigate } from 'react-router-dom';
 
 // Componente memoizado para las filas de ventas recientes
-const SaleRow = memo(({ group, index, products, reprintTicket, setSelectedSaleGroup, setOpenCancelDialog }) => {
+const SaleRow = memo(({ group, index, products, reprintTicket, setSelectedSaleGroup, setOpenCancelDialog, userRole }) => {
   const productNames = group.items.map(item => {
     const product = products.find(p => p.id === item.product_id);
     return product ? `${product.name} (x${item.quantity})` : `ID: ${item.product_id} (x${item.quantity})`;
@@ -52,37 +52,46 @@ const SaleRow = memo(({ group, index, products, reprintTicket, setSelectedSaleGr
 
   return (
     <TableRow key={group.sale_group_id}>
-      <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.9rem', md: '1rem' }, py: { xs: 0.2, sm: 0.4 } }}>
+      <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.9rem', md: '1rem' }, py: { xs: 1, sm: 1.5 } }}>
         Venta #{index + 1}
       </TableCell>
-      <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.9rem', md: '1rem' }, py: { xs: 0.2, sm: 0.4 } }}>
+      <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.9rem', md: '1rem' }, py: { xs: 1, sm: 1.5 } }}>
         {formatDate(group.date)}
       </TableCell>
-      <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.9rem', md: '1rem' }, py: { xs: 0.2, sm: 0.4 } }}>
+      <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.9rem', md: '1rem' }, py: { xs: 1, sm: 1.5 } }}>
         {productNames.join(', ')}
       </TableCell>
-      <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.9rem', md: '1rem' }, py: { xs: 0.2, sm: 0.4 } }}>
+      <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.9rem', md: '1rem' }, py: { xs: 1, sm: 1.5 } }}>
+        {group.userName || 'Desconocido'} {/* Mostrar el nombre del usuario */}
+      </TableCell>
+      <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.9rem', md: '1rem' }, py: { xs: 1, sm: 1.5 } }}>
         {group.total.toFixed(2)}
       </TableCell>
-      <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.9rem', md: '1rem' }, py: { xs: 0.2, sm: 0.4 } }}>
-        {group.user_name || 'Desconocido'}
-      </TableCell>
-      <TableCell sx={{ py: { xs: 0.2, sm: 0.4 } }}>
+      <TableCell sx={{ py: { xs: 1, sm: 1.5 } }}>
         <Tooltip title="Reimprimir Ticket">
           <IconButton color="primary" onClick={() => reprintTicket(group)}>
             <PrintIcon sx={{ fontSize: { xs: 24, md: 28 } }} />
           </IconButton>
         </Tooltip>
-        <Tooltip title="Anular Venta">
-          <IconButton
-            color="secondary"
-            onClick={() => {
-              setSelectedSaleGroup(group);
-              setOpenCancelDialog(true);
-            }}
-          >
-            <CancelIcon sx={{ fontSize: { xs: 20, md: 24 } }} />
-          </IconButton>
+        <Tooltip title={userRole === 'admin' ? 'Anular Venta' : 'No tienes permisos para anular ventas'}>
+          <span>
+            <IconButton
+              color="secondary"
+              onClick={() => {
+                if (userRole === 'admin') {
+                  setSelectedSaleGroup(group);
+                  setOpenCancelDialog(true);
+                }
+              }}
+              disabled={userRole !== 'admin'} // Deshabilitar para no administradores
+              sx={{
+                opacity: userRole === 'admin' ? 1 : 0.5,
+                cursor: userRole === 'admin' ? 'pointer' : 'not-allowed',
+              }}
+            >
+              <CancelIcon sx={{ fontSize: { xs: 20, md: 24 } }} />
+            </IconButton>
+          </span>
         </Tooltip>
       </TableCell>
     </TableRow>
@@ -106,6 +115,7 @@ function PointOfSale() {
   const [paymentMethod, setPaymentMethod] = useState('');
   const [error, setError] = useState(null);
   const [cashierName, setCashierName] = useState('Usuario');
+  const [userRole, setUserRole] = useState(null); // Nuevo estado para el rol
   const componentRef = useRef();
   const navigate = useNavigate();
 
@@ -122,6 +132,21 @@ function PointOfSale() {
     'Pago Móvil',
     'Avance de Efectivo',
   ];
+
+  // Obtener el rol del usuario
+  useEffect(() => {
+    const fetchUserRole = async () => {
+      const { data: { user }, error } = await supabase.auth.getUser();
+      if (error || !user) {
+        setError('No se pudo autenticar el usuario. Por favor, inicia sesión nuevamente.');
+        navigate('/login');
+        return;
+      }
+      setUserRole(user.user_metadata.role || 'user');
+    };
+
+    fetchUserRole();
+  }, [navigate, setError]);
 
   const fetchProducts = useCallback(async () => {
     const { data, error } = await supabase.from('products').select('*').limit(50);
@@ -161,37 +186,32 @@ function PointOfSale() {
   }, []);
 
   const fetchExchangeRate = useCallback(async () => {
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-      console.error('Error getting user:', userError);
-      setError('No se pudo autenticar el usuario. Por favor, inicia sesión nuevamente.');
-      navigate('/login');
-      return;
-    }
     const { data, error } = await supabase
       .from('settings')
       .select('value')
       .eq('key', 'exchange_rate')
-      .eq('user_id', user.id);
+      .is('user_id', null); // Buscar la tasa de cambio global (user_id es NULL)
+
     if (error) {
       console.error('Error fetching exchange rate:', error);
       setError(`Error al recuperar la tasa de cambio: ${error.message} (Código: ${error.code})`);
       return;
     }
+
     if (data && data.length > 0) {
       if (data.length > 1) {
-        console.warn('Multiple exchange rates found for user:', user.id);
-        setError('Se encontraron múltiples tasas de cambio. Por favor, corrige esto en la configuración.');
+        console.warn('Multiple exchange rates found');
+        setError('Se encontraron múltiples tasas de cambio globales. Por favor, corrige esto en la configuración.');
         return;
       }
       setExchangeRate(parseFloat(data[0].value) || 1);
     } else {
-      setError('No se encontró una tasa de cambio. Por favor, configúrala en la sección de Configuración.');
+      setError('No se encontró una tasa de cambio global. Por favor, solicita al administrador que la configure.');
       setExchangeRate(null);
     }
-  }, [navigate, setError, setExchangeRate]);
+  }, [setError, setExchangeRate]);
 
-  const handleSalesData = useCallback((sales, userMap) => {
+  const handleSalesData = useCallback((sales, saleGroupsWithUsers) => {
     if (!sales || sales.length === 0) {
       setSalesGroups([]);
       return;
@@ -211,13 +231,13 @@ function PointOfSale() {
         return acc;
       }
       if (!acc[groupId]) {
+        const saleGroup = saleGroupsWithUsers.find(sg => sg.sale_group_id === groupId);
         acc[groupId] = {
           sale_group_id: groupId,
           items: [],
           total: 0,
           date: sale.created_at || new Date(sale.id).toISOString(),
-          user_id: sale.user_id,
-          user_name: userMap[sale.user_id] || 'Desconocido', // Nombre del usuario
+          userName: saleGroup ? saleGroup.user_first_name : 'Desconocido', // Nombre del usuario
         };
       }
       acc[groupId].items.push(sale);
@@ -230,32 +250,15 @@ function PointOfSale() {
   }, [setSalesGroups]);
 
   const fetchSalesGroups = useCallback(async () => {
-    // Primero, obtener los usuarios para mapear user_id a first_name
-    const { data: users, error: usersError } = await supabase
-      .from('users')
-      .select('id, first_name');
-
-    if (usersError) {
-      console.error('Error fetching users:', usersError);
-      setError(`Error al recuperar los usuarios: ${usersError.message} (Código: ${usersError.code})`);
-      setSalesGroups([]);
-      return;
-    }
-
-    // Crear un mapa de user_id a first_name
-    const userMap = users.reduce((acc, user) => {
-      acc[user.id] = user.first_name || 'Desconocido';
-      return acc;
-    }, {});
-
-    const { data: sales, error } = await supabase
+    // Obtener las ventas
+    const { data: sales, error: salesError } = await supabase
       .from('sales')
       .select('*')
       .order('created_at', { ascending: false })
       .limit(20);
 
-    if (error) {
-      if (error.code === '42703') {
+    if (salesError) {
+      if (salesError.code === '42703') {
         console.warn('created_at column does not exist, falling back to ordering by id');
         const { data: fallbackSales, error: fallbackError } = await supabase
           .from('sales')
@@ -270,17 +273,87 @@ function PointOfSale() {
           return;
         }
 
-        handleSalesData(fallbackSales, userMap);
+        // Obtener sale_groups y cruzar con users para obtener el nombre
+        const saleGroupIds = [...new Set(fallbackSales.map(sale => sale.sale_group_id))];
+        const { data: saleGroups, error: saleGroupsError } = await supabase
+          .from('sale_groups')
+          .select('sale_group_id, user_id')
+          .in('sale_group_id', saleGroupIds);
+
+        if (saleGroupsError) {
+          console.error('Error fetching sale groups:', saleGroupsError);
+          setError(`Error al recuperar los grupos de venta: ${saleGroupsError.message} (Código: ${saleGroupsError.code})`);
+          setSalesGroups([]);
+          return;
+        }
+
+        const userIds = [...new Set(saleGroups.map(sg => sg.user_id))];
+        const { data: users, error: usersError } = await supabase
+          .from('users')
+          .select('id, first_name')
+          .in('id', userIds);
+
+        if (usersError) {
+          console.error('Error fetching users:', usersError);
+          setError(`Error al recuperar los usuarios: ${usersError.message} (Código: ${usersError.code})`);
+          setSalesGroups([]);
+          return;
+        }
+
+        const saleGroupsWithUsers = saleGroups.map(sg => {
+          const user = users.find(u => u.id === sg.user_id);
+          return {
+            ...sg,
+            user_first_name: user ? user.first_name : 'Desconocido',
+          };
+        });
+
+        handleSalesData(fallbackSales, saleGroupsWithUsers);
         return;
       }
 
-      console.error('Error fetching sales:', error);
-      setError(`Error al recuperar las ventas: ${error.message} (Código: ${error.code})`);
+      console.error('Error fetching sales:', salesError);
+      setError(`Error al recuperar las ventas: ${salesError.message} (Código: ${salesError.code})`);
       setSalesGroups([]);
       return;
     }
 
-    handleSalesData(sales, userMap);
+    // Obtener sale_groups y cruzar con users para obtener el nombre
+    const saleGroupIds = [...new Set(sales.map(sale => sale.sale_group_id))];
+    const { data: saleGroups, error: saleGroupsError } = await supabase
+      .from('sale_groups')
+      .select('sale_group_id, user_id')
+      .in('sale_group_id', saleGroupIds);
+
+    if (saleGroupsError) {
+      console.error('Error fetching sale groups:', saleGroupsError);
+      setError(`Error al recuperar los grupos de venta: ${saleGroupsError.message} (Código: ${saleGroupsError.code})`);
+      setSalesGroups([]);
+      return;
+    }
+
+    const userIds = [...new Set(saleGroups.map(sg => sg.user_id))];
+    const { data: users, error: usersError } = await supabase
+      .from('users')
+      .select('id, first_name')
+      .in('id', userIds);
+
+    if (usersError) {
+      console.error('Error fetching users:', usersError);
+      setError(`Error al recuperar los usuarios: ${usersError.message} (Código: ${usersError.code})`);
+      setSalesGroups([]);
+      return;
+    }
+
+    const saleGroupsWithUsers = saleGroups.map(sg => {
+      const user = users.find(u => u.id === sg.user_id);
+      return {
+        ...sg,
+        user_first_name: user ? user.first_name : 'Desconocido',
+      };
+    });
+
+    handleSalesData(sales, saleGroupsWithUsers);
   }, [handleSalesData, setError, setSalesGroups]);
 
   useEffect(() => {
@@ -553,6 +626,13 @@ function PointOfSale() {
   const cancelSaleGroup = useCallback(async () => {
     if (!selectedSaleGroup) return;
 
+    if (userRole !== 'admin') {
+      setError('Solo los administradores pueden anular ventas.');
+      setOpenCancelDialog(false);
+      setSelectedSaleGroup(null);
+      return;
+    }
+
     const { error: cancelError } = await supabase
       .from('sales')
       .update({ is_canceled: true })
@@ -586,7 +666,7 @@ function PointOfSale() {
     fetchDailySales();
     fetchTotalProducts();
     setError(null);
-  }, [selectedSaleGroup, products, fetchSalesGroups, fetchProducts, fetchDailySales, fetchTotalProducts, setOpenCancelDialog, setSelectedSaleGroup, setError]);
+  }, [selectedSaleGroup, products, fetchSalesGroups, fetchProducts, fetchDailySales, fetchTotalProducts, setOpenCancelDialog, setSelectedSaleGroup, setError, userRole]);
 
   const handlePrint = useCallback(() => {
     console.log('Printing ticket using window.print...');
@@ -672,13 +752,13 @@ function PointOfSale() {
               .join('') ?? ''}
           </div>
           <div class="divider"></div>
-          <div style="display: flex; justify-content: space-between; margin: 2px 0;">
+          <div style=".LazyLoad is-visibleisplay: flex; justify-content: space-between; margin: 2px 0;">
             <span>SUBTOTAL Bs.</span>
             <span>Bs. ${(saleDetails?.subtotal ?? 0).toFixed(2)}</span>
           </div>
-          //  <div style="display: flex; justify-content: space-between; margin: 2px 0;">
-            //  <span>IVA (16%)</span>
-            // <span>Bs. ${(saleDetails?.tax ?? 0).toFixed(2)}</span>
+          <div style="display: flex; justify-content: space-between; margin: 2px 0;">
+            <span>IVA (16%)</span>
+            <span>Bs. ${(saleDetails?.tax ?? 0).toFixed(2)}</span>
           </div>
           <div class="divider"></div>
           <div style="display: flex; justify-content: space-between;" class="total">
@@ -923,7 +1003,7 @@ function PointOfSale() {
           p: { xs: 1, sm: 2, md: 3, lg: 4 },
           ml: { sm: open ? '240px' : 0, lg: open ? '280px' : 0 },
           mr: { sm: '300px', md: '400px', lg: '450px', xl: '500px' },
-          mt: { xs: 8, sm: 8, md: 10 }, 
+          mt: { xs: 8, sm: 8, md: 10 },
           mb: { xs: 4, sm: 6 },
           width: {
             xs: '100%',
@@ -939,7 +1019,7 @@ function PointOfSale() {
       >
         <Container sx={{ px: { xs: 0, sm: 1, md: 2, lg: 3 }, maxWidth: '100%' }}>
           <Typography
-            variant="h2"
+            variant="h1"
             gutterBottom
             sx={{
               fontSize: { xs: '1.2rem', sm: '1.5rem', md: '2rem', lg: '2.5rem' },
@@ -961,9 +1041,7 @@ function PointOfSale() {
                 mb: { xs: 2, sm: 3, md: 4 },
                 py: { xs: 0.8, sm: 1 },
                 fontSize: { xs: '0.7rem', sm: '0.8rem' },
-                
               }}
-              
             >
               Ver Carrito ({cart.length})
             </Button>
@@ -973,7 +1051,7 @@ function PointOfSale() {
             variant="h2"
             sx={{
               mt: { xs: 2, sm: 3, md: 4 },
-              mb: { xs: 0.5, sm: 1 }, // Reducido el margen inferior
+              mb: { xs: 1, sm: 2 },
               fontSize: { xs: '1rem', sm: '1.2rem', md: '1.5rem', lg: '2rem' },
               fontWeight: 500,
               color: '#1976d2',
@@ -981,26 +1059,26 @@ function PointOfSale() {
           >
             Ventas Recientes
           </Typography>
-          <TableContainer component={Paper} sx={{ borderRadius: '12px', boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)', mt: 0 }}>
-            <Table size={isMobile ? 'small' : 'medium'} sx={{ '& .MuiTableCell-root': { padding: '2px 16px' } }}>
+          <TableContainer component={Paper} sx={{ borderRadius: '12px', boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)' }}>
+            <Table size={isMobile ? 'small' : 'medium'}>
               <TableHead>
                 <TableRow>
-                  <TableCell sx={{ fontWeight: 600, fontSize: { xs: '0.75rem', sm: '0.9rem', md: '1rem', lg: '1.1rem' }, py: { xs: 0.2, sm: 0.4 } }}>
+                  <TableCell sx={{ fontWeight: 600, fontSize: { xs: '0.75rem', sm: '0.9rem', md: '1rem', lg: '1.1rem' }, py: { xs: 1, sm: 1.5 } }}>
                     Número de Venta
                   </TableCell>
-                  <TableCell sx={{ fontWeight: 600, fontSize: { xs: '0.75rem', sm: '0.9rem', md: '1rem', lg: '1.1rem' }, py: { xs: 0.2, sm: 0.4 } }}>
+                  <TableCell sx={{ fontWeight: 600, fontSize: { xs: '0.75rem', sm: '0.9rem', md: '1rem', lg: '1.1rem' }, py: { xs: 1, sm: 1.5 } }}>
                     Fecha
                   </TableCell>
-                  <TableCell sx={{ fontWeight: 600, fontSize: { xs: '0.75rem', sm: '0.9rem', md: '1rem', lg: '1.1rem' }, py: { xs: 0.2, sm: 0.4 } }}>
+                  <TableCell sx={{ fontWeight: 600, fontSize: { xs: '0.75rem', sm: '0.9rem', md: '1rem', lg: '1.1rem' }, py: { xs: 1, sm: 1.5 } }}>
                     Productos
                   </TableCell>
-                  <TableCell sx={{ fontWeight: 600, fontSize: { xs: '0.75rem', sm: '0.9rem', md: '1rem', lg: '1.1rem' }, py: { xs: 0.2, sm: 0.4 } }}>
+                  <TableCell sx={{ fontWeight: 600, fontSize: { xs: '0.75rem', sm: '0.9rem', md: '1rem', lg: '1.1rem' }, py: { xs: 1, sm: 1.5 } }}>
+                    Realizado por
+                  </TableCell>
+                  <TableCell sx={{ fontWeight: 600, fontSize: { xs: '0.75rem', sm: '0.9rem', md: '1rem', lg: '1.1rem' }, py: { xs: 1, sm: 1.5 } }}>
                     Total (Bs.)
                   </TableCell>
-                  <TableCell sx={{ fontWeight: 600, fontSize: { xs: '0.75rem', sm: '0.9rem', md: '1rem', lg: '1.1rem' }, py: { xs: 0.2, sm: 0.4 } }}>
-                    Cajero
-                  </TableCell>
-                  <TableCell sx={{ fontWeight: 600, fontSize: { xs: '0.75rem', sm: '0.9rem', md: '1rem', lg: '1.1rem' }, py: { xs: 0.2, sm: 0.4 } }}>
+                  <TableCell sx={{ fontWeight: 600, fontSize: { xs: '0.75rem', sm: '0.9rem', md: '1rem', lg: '1.1rem' }, py: { xs: 1, sm: 1.5 } }}>
                     Acciones
                   </TableCell>
                 </TableRow>
@@ -1008,7 +1086,7 @@ function PointOfSale() {
               <TableBody>
                 {salesGroups.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} sx={{ textAlign: 'center', fontSize: { xs: '0.75rem', sm: '0.9rem', md: '1rem' }, py: { xs: 0.2, sm: 0.4 } }}>
+                    <TableCell colSpan={6} sx={{ textAlign: 'center', fontSize: { xs: '0.75rem', sm: '0.9rem', md: '1rem' }, py: 2 }}>
                       No hay ventas recientes.
                     </TableCell>
                   </TableRow>
@@ -1022,6 +1100,7 @@ function PointOfSale() {
                       reprintTicket={reprintTicket}
                       setSelectedSaleGroup={setSelectedSaleGroup}
                       setOpenCancelDialog={setOpenCancelDialog}
+                      userRole={userRole} // Pasar userRole
                     />
                   ))
                 )}
@@ -1089,7 +1168,7 @@ function PointOfSale() {
             sx={{
               p: 1,
               fontFamily: 'monospace',
-              fontSize: { saputo: '8px', sm: '10px', md: '12px' },
+              fontSize: { xs: '8px', sm: '10px', md: '12px' },
               lineHeight: 1.2,
               width: '100mm',
               textAlign: 'center',
