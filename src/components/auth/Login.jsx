@@ -376,14 +376,14 @@ function Login() {
           >
             ¿Olvidaste tu contraseña?
           </button>
-          <button
+          {/* <button
             type="button"
             onClick={() => navigate('/register')}
             disabled={loading}
             className="link-button"
           >
             Crear una cuenta
-          </button>
+          </button> */}
         </form>
       </div>
     </div>
