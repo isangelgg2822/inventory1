@@ -8,67 +8,87 @@ import {
   CardContent,
   Grid,
   Box,
+  Button,
+  Alert,
 } from '@mui/material';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import InventoryIcon from '@mui/icons-material/Inventory';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import WarningIcon from '@mui/icons-material/Warning';
-// Commented out chart imports to prevent unused imports
-// import { Line } from 'react-chartjs-2';
-// import {
-//   Chart as ChartJS,
-//   LineElement,
-//   PointElement,
-//   LinearScale,
-//   Title,
-//   CategoryScale,
-//   Tooltip,
-//   Legend,
-// } from 'chart.js';
-
-// Commented out Chart.js registration since chart is not used
-// ChartJS.register(LineElement, PointElement, LinearScale, Title, CategoryScale, Tooltip, Legend);
+import { useNavigate } from 'react-router-dom';
 
 function Home() {
-  const { fetchDailySales, fetchTotalProducts, /* fetchSalesLast7Days, */ fetchTotalSales } = useDashboard();
+  const { fetchDailySales, fetchTotalProducts, fetchTotalSales } = useDashboard();
   const [dailySales, setDailySales] = useState(0);
   const [totalProducts, setTotalProducts] = useState(0);
   const [totalSales, setTotalSales] = useState(0);
-  // Commented out salesData state to prevent chart data fetching
-  // const [salesData, setSalesData] = useState([]);
   const [lowStockProducts, setLowStockProducts] = useState(0);
   const [exchangeRate, setExchangeRate] = useState(1);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [exchangeRateWarning, setExchangeRateWarning] = useState(null); // Nuevo estado para advertencia
+  const navigate = useNavigate();
 
   const fetchExchangeRate = useCallback(async () => {
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     if (userError || !user) {
       console.error('Error getting user:', userError);
+      setError('No se pudo autenticar el usuario. Por favor, inicia sesión nuevamente.');
       return;
     }
-    const { data, error } = await supabase
+
+    // Primero intenta obtener la tasa de cambio global
+    let data, error;
+    ({ data, error } = await supabase
       .from('settings')
       .select('value')
       .eq('key', 'exchange_rate')
-      .eq('user_id', user.id)
-      .single();
+      .is('user_id', null)
+      .maybeSingle());
+
     if (error) {
-      console.error('Error fetching exchange rate:', error);
+      console.error('Error fetching global exchange rate:', error);
+      setError(`Error al recuperar la tasa de cambio global: ${error.message}`);
       return;
     }
+
+    if (!data) {
+      // Si no hay tasa global, busca una tasa específica del usuario
+      ({ data, error } = await supabase
+        .from('settings')
+        .select('value')
+        .eq('key', 'exchange_rate')
+        .eq('user_id', user.id)
+        .maybeSingle());
+      if (error) {
+        console.error('Error fetching user exchange rate:', error);
+        setError(`Error al recuperar la tasa de cambio del usuario: ${error.message}`);
+        return;
+      }
+    }
+
     if (data) {
       setExchangeRate(parseFloat(data.value) || 1);
+      setExchangeRateWarning(null); // Limpiar advertencia si se encuentra una tasa
+    } else {
+      setExchangeRate(1); // Valor por defecto
+      setExchangeRateWarning('No se encontró una tasa de cambio. Las ventas en USD se calcularán con una tasa de 1. Configúrala en ajustes.');
     }
-  }, []);
+  }, [setError]);
 
   const fetchLowStockProducts = useCallback(async () => {
     const { data, error } = await supabase.from('products').select('quantity');
     if (error) {
       console.error('Error fetching products for low stock:', error);
+      if (error.message.includes('No API key found')) {
+        setError('Error de autenticación con la API. Por favor, revisa la configuración del cliente.');
+      } else {
+        setError(`Error al recuperar productos con bajo stock: ${error.message}`);
+      }
       return 0;
     }
     return data?.filter(product => product.quantity < 10).length || 0;
-  }, []);
+  }, [setError]);
 
   const loadData = useCallback(async () => {
     try {
@@ -76,34 +96,39 @@ function Home() {
       console.log('Home.jsx - Iniciando carga de datos...');
       const sales = await fetchDailySales();
       const products = await fetchTotalProducts();
-      // Commented out fetchSalesLast7Days to prevent loading delays
-      // const salesLast7Days = await fetchSalesLast7Days();
       const totalSalesAmount = await fetchTotalSales();
       const lowStock = await fetchLowStockProducts();
-      console.log('Home.jsx - Datos obtenidos:', { sales, products, /* salesLast7Days, */ totalSalesAmount, lowStock });
+      console.log('Home.jsx - Datos obtenidos:', { sales, products, totalSalesAmount, lowStock });
       setDailySales(sales || 0);
       setTotalProducts(products || 0);
-      // Commented out setSalesData since chart is not used
-      // setSalesData(salesLast7Days.length ? salesLast7Days : [0, 0, 0, 0, 0, sales || 0, 0]);
       setTotalSales(totalSalesAmount || 0);
       setLowStockProducts(lowStock);
+      setError(null);
     } catch (error) {
       console.error('Error loading data:', error);
       setDailySales(0);
       setTotalProducts(0);
-      // Commented out setSalesData since chart is not used
-      // setSalesData([0, 0, 0, 0, 0, 0, 0]);
       setTotalSales(0);
       setLowStockProducts(0);
+      setError('Error al cargar los datos del dashboard. Por favor, intenta de nuevo.');
     } finally {
       setLoading(false);
       console.log('Home.jsx - Carga de datos finalizada, loading:', false);
     }
-  }, [fetchDailySales, fetchTotalProducts, /* fetchSalesLast7Days, */ fetchTotalSales, fetchLowStockProducts]);
+  }, [fetchDailySales, fetchTotalProducts, fetchTotalSales, fetchLowStockProducts]);
 
   useEffect(() => {
-    fetchExchangeRate();
-    loadData();
+    const initializeData = async () => {
+      try {
+        await fetchExchangeRate();
+        await loadData();
+      } catch (error) {
+        console.error('Error during initialization:', error);
+        setError('Error al inicializar los datos. Por favor, revisa tu conexión o la configuración.');
+      }
+    };
+
+    initializeData();
 
     const salesSubscription = supabase
       .channel('public:sales')
@@ -138,79 +163,28 @@ function Home() {
 
   const dailySalesUsd = dailySales / exchangeRate;
 
-   // Commented out chart-related code to prevent rendering
-  
-  // const today = new Date();
-  // const labels = Array.from({ length: 7 }, (_, i) => {
-  //   const date = new Date(today);
-  //   date.setDate(today.getDate() - (6 - i));
-  //   return `${date.getDate()}/${date.getMonth() + 1}`;
-  // });
-
-  // const chartData = {
-  //   labels,
-  //   datasets: [
-  //     {
-  //       label: 'Ventas Diarias (Bs.)',
-  //       data: salesData,
-  //       borderColor: '#1976d2',
-  //       backgroundColor: 'rgba(25, 118, 210, 0.2)',
-  //       fill: true,
-  //       tension: 0.3,
-  //       pointRadius: 5,
-  //       pointHoverRadius: 8,
-  //     },
-  //   ],
-  // };
-
-  // const chartOptions = {
-  //   responsive: true,
-  //   plugins: {
-  //     legend: {
-  //       position: 'top',
-  //       labels: {
-  //         color: '#2d3748',
-  //         font: { size: 14 },
-  //       },
-  //     },
-  //     title: {
-  //       display: true,
-  //       text: 'Tendencia de Ventas (Últimos 7 Días)',
-  //       font: { size: 16 },
-  //       color: '#2d3748',
-  //       padding: { top: 10, bottom: 20 },
-  //     },
-  //     tooltip: {
-  //       backgroundColor: '#2d3748',
-  //       titleColor: '#fff',
-  //       bodyColor: '#fff',
-  //     },
-  //   },
-  //   scales: {
-  //     y: {
-  //       beginAtZero: true,
-  //       title: {
-  //         display: true,
-  //         text: 'Ventas (Bs.)',
-  //         color: '#2d3748',
-  //         font: { size: 14 },
-  //       },
-  //       grid: { color: 'rgba(0, 0, 0, 0.05)' },
-  //       ticks: { color: '#2d3748' },
-  //     },
-  //     x: {
-  //       title: {
-  //         display: true,
-  //         text: 'Fecha',
-  //         color: '#2d3748',
-  //         font: { size: 14 },
-  //       },
-  //       grid: { display: false },
-  //       ticks: { color: '#2d3748' },
-  //     },
-  //   },
-  // };
- 
+  if (error) {
+    return (
+      <Container sx={{ mt: { xs: 2, sm: 4 }, mb: { xs: 2, sm: 4 } }}>
+        <Typography variant="h2" gutterBottom sx={{ fontSize: '2rem', fontWeight: 600 }}>
+          Dashboard
+        </Typography>
+        <Box sx={{ backgroundColor: '#ffebee', p: { xs: 2, sm: 3 }, borderRadius: '12px', mb: 2 }}>
+          <Typography variant="h6" color="error" sx={{ fontSize: { xs: '0.9rem', sm: '1rem' } }}>
+            {error}
+          </Typography>
+        </Box>
+        <Button
+          variant="contained"
+          color="primary"
+          onClick={() => navigate('/settings')}
+          sx={{ py: 1, px: 2, fontSize: { xs: '0.7rem', sm: '0.8rem' } }}
+        >
+          Ir a Configuración
+        </Button>
+      </Container>
+    );
+  }
 
   if (loading) {
     console.log('Home.jsx - Mostrando estado de carga...');
@@ -221,13 +195,28 @@ function Home() {
     );
   }
 
-  console.log('Home.jsx - Renderizando contenido principal:', { dailySales, totalProducts, /* salesData, */ totalSales, lowStockProducts });
+  console.log('Home.jsx - Renderizando contenido principal:', { dailySales, totalProducts, totalSales, lowStockProducts });
 
   return (
     <Container>
       <Typography variant="h2" gutterBottom sx={{ fontSize: '2rem', fontWeight: 600 }}>
         Dashboard
       </Typography>
+
+      {exchangeRateWarning && (
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          {exchangeRateWarning}
+          <Button
+            variant="outlined"
+            color="warning"
+            size="small"
+            onClick={() => navigate('/settings')}
+            sx={{ ml: 2 }}
+          >
+            Configurar
+          </Button>
+        </Alert>
+      )}
 
       <Grid container spacing={3} sx={{ mb: 4 }}>
         <Grid item xs={12} sm={6} md={3}>
@@ -297,13 +286,6 @@ function Home() {
           </Card>
         </Grid>
       </Grid>
-
-      {/* Commented out chart section to prevent rendering */}
-      {/*
-      <Card sx={{ p: 2, boxShadow: 3, borderRadius: '12px', maxWidth: '800px', mx: 'auto' }}>
-        <Line data={chartData} options={chartOptions} />
-      </Card>
-      */}
     </Container>
   );
 }

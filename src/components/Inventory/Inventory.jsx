@@ -45,6 +45,8 @@ function Inventory() {
   const [editQuantity, setEditQuantity] = useState('');
   const [editPrice, setEditPrice] = useState('');
   const [editCategory, setEditCategory] = useState('');
+  const [userRole, setUserRole] = useState('user'); // Estado para el rol del usuario
+  const [error, setError] = useState(null); // Estado para errores
 
   const categories = [
     '',
@@ -54,6 +56,22 @@ function Inventory() {
   ];
 
   useEffect(() => {
+    const fetchUserRole = async () => {
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError) {
+        console.error('Error fetching user:', userError);
+        setError('Error al obtener el usuario. Por favor, inicia sesión nuevamente.');
+        return;
+      }
+      if (user) {
+        const role = user.user_metadata?.role || 'user';
+        setUserRole(role);
+      } else {
+        setError('No se encontró un usuario autenticado.');
+      }
+    };
+
+    fetchUserRole();
     fetchProducts();
   }, []);
 
@@ -61,6 +79,7 @@ function Inventory() {
     const { data, error } = await supabase.from('products').select('*');
     if (error) {
       console.error('Error fetching products:', error);
+      setError(`Error al recuperar los productos: ${error.message}`);
       return;
     }
     setProducts(data || []);
@@ -167,11 +186,28 @@ function Inventory() {
     fetchProducts();
   };
 
+  if (error) {
+    return (
+      <Container sx={{ mt: { xs: 2, sm: 4 }, mb: { xs: 2, sm: 4 } }}>
+        <Typography variant="h2" gutterBottom sx={{ fontSize: '2rem', fontWeight: 600 }}>
+          Inventario
+        </Typography>
+        <Box sx={{ backgroundColor: '#ffebee', p: { xs: 2, sm: 3 }, borderRadius: '12px', mb: 2 }}>
+          <Typography variant="h6" color="error" sx={{ fontSize: { xs: '0.9rem', sm: '1rem' } }}>
+            {error}
+          </Typography>
+        </Box>
+      </Container>
+    );
+  }
+
+  const isAdmin = userRole === 'admin'; // Determinar si el usuario es admin
+
   return (
     <>
       <Navbar />
       <Container>
-        <Typography variant="h2" gutterBottom sx={{ fontSize: '2rem',fontWeight: 600 }}>
+        <Typography variant="h2" gutterBottom sx={{ fontSize: '2rem', fontWeight: 600 }}>
           Inventario
         </Typography>
 
@@ -274,26 +310,35 @@ function Inventory() {
             <TableBody>
               {filteredProducts.map((product) => (
                 <TableRow key={product.id}>
-                  <TableCell sx={{ fontSize: '0.8rem'  }}>{product.name}</TableCell>
-                  <TableCell sx={{ fontSize: '0.8rem'  }}>{product.category || '-'}</TableCell>
+                  <TableCell sx={{ fontSize: '0.8rem' }}>{product.name}</TableCell>
+                  <TableCell sx={{ fontSize: '0.8rem' }}>{product.category || '-'}</TableCell>
                   <TableCell sx={{ fontSize: '0.8rem' }}>{product.quantity}</TableCell>
-                  <TableCell sx={{ fontSize: '0.8rem'  }}>${product.price.toFixed(2)}</TableCell>
+                  <TableCell sx={{ fontSize: '0.8rem' }}>${product.price.toFixed(2)}</TableCell>
                   <TableCell>
-                    <Tooltip title="Editar">
-                      <IconButton color="primary" onClick={() => openEditModalHandler(product)}>
-                        <Edit sx={{ fontSize: 26}} />
-                      </IconButton>
+                    <Tooltip title={isAdmin ? "Editar" : "No tienes permiso para editar"}>
+                      <span>
+                        <IconButton
+                          color="primary"
+                          onClick={() => openEditModalHandler(product)}
+                          disabled={!isAdmin}
+                        >
+                          <Edit sx={{ fontSize: 26 }} />
+                        </IconButton>
+                      </span>
                     </Tooltip>
-                    <Tooltip title="Eliminar">
-                      <IconButton
-                        color="secondary"
-                        onClick={() => {
-                          setSelectedProduct(product);
-                          setOpenDeleteDialog(true);
-                        }}
-                      >
-                        <Delete sx={{ fontSize: 26}} />
-                      </IconButton>
+                    <Tooltip title={isAdmin ? "Eliminar" : "No tienes permiso para eliminar"}>
+                      <span>
+                        <IconButton
+                          color="secondary"
+                          onClick={() => {
+                            setSelectedProduct(product);
+                            setOpenDeleteDialog(true);
+                          }}
+                          disabled={!isAdmin}
+                        >
+                          <Delete sx={{ fontSize: 26 }} />
+                        </IconButton>
+                      </span>
                     </Tooltip>
                   </TableCell>
                 </TableRow>
