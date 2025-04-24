@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../supabase';
 import Navbar from '../Navbar';
-import { useDrawer } from '../../context/DrawerHooks';
 import {
   Container,
   Typography,
@@ -22,7 +21,6 @@ import {
 import { useNavigate } from 'react-router-dom';
 
 function Settings() {
-  const { open } = useDrawer();
   const navigate = useNavigate();
   const [exchangeRate, setExchangeRate] = useState('');
   const [previousExchangeRate, setPreviousExchangeRate] = useState(null);
@@ -31,23 +29,22 @@ function Settings() {
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
   const [error, setError] = useState(null);
-  const [userRole, setUserRole] = useState(null); // Nuevo estado para el rol del usuario
+  const [userRole, setUserRole] = useState(null);
+  const [open, setOpen] = useState(false); // Estado para controlar el Navbar
 
   useEffect(() => {
     const checkAuthAndFetchData = async () => {
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      if (userError || !user) {
+      const { data, error: userError } = await supabase.auth.getUser();
+      if (userError || !data?.user) {
         console.error('Error getting user:', userError);
         setError('No se pudo autenticar el usuario. Por favor, inicia sesión nuevamente.');
         navigate('/login');
         return;
       }
 
-      // Obtener el rol del usuario desde los metadatos
-      const role = user.user_metadata.role;
+      const role = data.user.user_metadata?.role || 'user';
       setUserRole(role);
 
-      // Solo los usuarios con role: "admin" pueden modificar tasas, pero todos pueden leer
       fetchExchangeRate();
       fetchExchangeRateHistory();
       fetchRateHistory();
@@ -60,26 +57,26 @@ function Settings() {
       .from('settings')
       .select('value, updated_at')
       .eq('key', 'exchange_rate')
-      .is('user_id', null); // Usar .is() para comparar con NULL
+      .is('user_id', null);
     if (error) {
       console.error('Error fetching exchange rate:', error);
       setError('Error al obtener la tasa de cambio: ' + error.message);
       return;
     }
     if (data && data.length > 0) {
-      setExchangeRate(data[0].value || '');
+      setExchangeRate(data[0].value ? String(data[0].value) : '');
       setLastUpdated(data[0].updated_at ? new Date(data[0].updated_at).toLocaleString('es-ES', { dateStyle: 'medium', timeStyle: 'short' }) : null);
     } else {
       setExchangeRate('');
       setLastUpdated(null);
     }
   };
-  
+
   const fetchExchangeRateHistory = async () => {
     const { data, error } = await supabase
       .from('exchange_rate_history')
       .select('exchange_rate')
-      .is('user_id', null) // Usar .is() para comparar con NULL
+      .is('user_id', null)
       .order('updated_at', { ascending: false })
       .limit(2);
     if (error) {
@@ -93,12 +90,12 @@ function Settings() {
       setPreviousExchangeRate(null);
     }
   };
-  
+
   const fetchRateHistory = async () => {
     const { data, error } = await supabase
       .from('exchange_rate_history')
       .select('exchange_rate, updated_at')
-      .is('user_id', null) // Usar .is() para comparar con NULL
+      .is('user_id', null)
       .order('updated_at', { ascending: false })
       .limit(5);
     if (error) {
@@ -110,38 +107,36 @@ function Settings() {
   };
 
   const saveExchangeRate = async () => {
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
+    const { data, error: userError } = await supabase.auth.getUser();
+    if (userError || !data?.user) {
       setError('No se pudo autenticar el usuario. Por favor, inicia sesión nuevamente.');
       navigate('/login');
       return;
     }
-  
-    // Verificar el rol del usuario
-    const role = user.user_metadata.role;
+
+    const role = data.user.user_metadata?.role || 'user';
     if (role !== 'admin') {
       setError('Solo los administradores pueden modificar la tasa de cambio.');
       return;
     }
-  
-    // Validar que exchangeRate sea un número válido
+
     const rateValue = parseFloat(exchangeRate);
     if (isNaN(rateValue) || rateValue <= 0) {
       setError('Por favor, ingresa una tasa de cambio válida (número mayor que 0).');
       return;
     }
-  
-    const { data } = await supabase
+
+    const { data: existingRate } = await supabase
       .from('settings')
       .select('id')
       .eq('key', 'exchange_rate')
-      .is('user_id', null); // Usar .is() para comparar con NULL
-  
-    if (data && data.length > 0) {
+      .is('user_id', null);
+
+    if (existingRate && existingRate.length > 0) {
       const { error } = await supabase
         .from('settings')
         .update({ value: exchangeRate, updated_at: new Date().toISOString() })
-        .eq('id', data[0].id);
+        .eq('id', existingRate[0].id);
       if (error) {
         console.error('Error updating exchange rate:', error);
         setError('Error al actualizar la tasa de cambio: ' + error.message);
@@ -149,7 +144,7 @@ function Settings() {
       }
     } else {
       const { error } = await supabase.from('settings').insert([
-        { key: 'exchange_rate', value: exchangeRate, user_id: null, updated_at: new Date().toISOString() }, // Tasa global
+        { key: 'exchange_rate', value: exchangeRate, user_id: null, updated_at: new Date().toISOString() },
       ]);
       if (error) {
         console.error('Error inserting exchange rate:', error);
@@ -157,24 +152,22 @@ function Settings() {
         return;
       }
     }
-  
-    // Insertar en el historial
+
     const { error: historyError } = await supabase.from('exchange_rate_history').insert([
-      { user_id: null, exchange_rate: rateValue }, // Historial global
+      { user_id: null, exchange_rate: rateValue },
     ]);
     if (historyError) {
       console.error('Error saving to exchange rate history:', historyError);
       setError('Tasa de cambio guardada, pero error al registrar en el historial: ' + historyError.message);
       return;
     }
-  
+
     await fetchExchangeRate();
     await fetchExchangeRateHistory();
     await fetchRateHistory();
-  
+
     setSnackbarMessage('Tasa de cambio guardada');
     setSnackbarOpen(true);
-  
   };
 
   const handleCloseSnackbar = () => {
@@ -183,8 +176,8 @@ function Settings() {
 
   if (error) {
     return (
-      <Container>
-        <Typography variant="h1" gutterBottom sx={{ fontSize: '2rem',fontWeight: 600 }}>
+      <Container sx={{ mt: { xs: 8, sm: 4 }, mb: { xs: 2, sm: 4 } }}>
+        <Typography variant="h1" gutterBottom sx={{ fontSize: '2rem', fontWeight: 600 }}>
           Configuración
         </Typography>
         <Box sx={{ backgroundColor: '#ffebee', p: 2, borderRadius: '12px', mb: 1 }}>
@@ -206,72 +199,72 @@ function Settings() {
 
   return (
     <>
-      <Navbar open={open} />
-      <Container>
+      <Navbar open={open} setOpen={setOpen} />
+      <Container sx={{ mt: { xs: 8, sm: 0 } }}>
         <Typography variant="h2" gutterBottom sx={{ fontSize: '1.5rem', fontWeight: 600, color: '#1976d2' }}>
           Configuración
         </Typography>
 
         <Box sx={{ mb: 4, backgroundColor: '#f5f5f5', p: 3, borderRadius: '12px', boxShadow: 1 }}>
-  <Typography variant="h6" gutterBottom sx={{ color: '#1976d2', fontWeight: 500 }}>
-    Tasa de Cambio
-  </Typography>
-  <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap', alignItems: 'center' }}>
-    <Box>
-      {exchangeRate === '' && userRole === 'admin' ? (
-        <Typography variant="body2" sx={{ color: '#666', mb: 1 }}>
-          No hay una tasa de cambio configurada. Ingresa un valor para inicializarla.
-        </Typography>
-      ) : exchangeRate === '' && userRole !== 'admin' ? (
-        <Typography variant="body2" sx={{ color: '#666', mb: 1 }}>
-          No hay una tasa de cambio configurada. Contacta a un administrador.
-        </Typography>
-      ) : null}
-      <TextField
-        label="Tasa de cambio (Bs. por USD)"
-        value={exchangeRate}
-        onChange={(e) => setExchangeRate(e.target.value)}
-        variant="outlined"
-        size="small"
-        type="number"
-        sx={{ maxWidth: 200, backgroundColor: '#fff', borderRadius: '8px', '& .MuiInputBase-input': { fontSize: '1.5rem', fontWeight: 'bold' } }}
-        disabled={userRole !== 'admin'} // Deshabilitar si no es admin
-      />
-    </Box>
-    {previousExchangeRate && (
-      <Box>
-        <TextField
-          label="Tasa anterior (Bs. por USD)"
-          value={parseFloat(previousExchangeRate).toFixed(2)}
-          variant="outlined"
-          size="small"
-          InputProps={{ readOnly: true }}
-          sx={{ maxWidth: 200, backgroundColor: '#f0f0f0', borderRadius: '8px', '& .MuiInputBase-input': { fontSize: '1.5rem', fontWeight: 'bold', color: '#666' } }}
-        />
-      </Box>
-    )}
-    <Button
-      variant="contained"
-      color="primary"
-      onClick={saveExchangeRate}
-      sx={{ py: 1.5, px: 3 }}
-      disabled={userRole !== 'admin'} // Deshabilitar si no es admin
-    >
-      Guardar
-    </Button>
-  </Box>
+          <Typography variant="h6" gutterBottom sx={{ color: '#1976d2', fontWeight: 500 }}>
+            Tasa de Cambio
+          </Typography>
+          <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap', alignItems: 'center' }}>
+            <Box>
+              {exchangeRate === '' && userRole === 'admin' ? (
+                <Typography variant="body2" sx={{ color: '#666', mb: 1 }}>
+                  No hay una tasa de cambio configurada. Ingresa un valor para inicializarla.
+                </Typography>
+              ) : exchangeRate === '' && userRole !== 'admin' ? (
+                <Typography variant="body2" sx={{ color: '#666', mb: 1 }}>
+                  No hay una tasa de cambio configurada. Contacta a un administrador.
+                </Typography>
+              ) : null}
+              <TextField
+                label="Tasa de cambio (Bs. por USD)"
+                value={exchangeRate}
+                onChange={(e) => setExchangeRate(e.target.value)}
+                variant="outlined"
+                size="small"
+                type="number"
+                sx={{ maxWidth: 200, backgroundColor: '#fff', borderRadius: '8px', '& .MuiInputBase-input': { fontSize: '1.5rem', fontWeight: 'bold' } }}
+                disabled={userRole !== 'admin'}
+              />
+            </Box>
+            {previousExchangeRate && (
+              <Box>
+                <TextField
+                  label="Tasa anterior (Bs. por USD)"
+                  value={parseFloat(previousExchangeRate).toFixed(2)}
+                  variant="outlined"
+                  size="small"
+                  InputProps={{ readOnly: true }}
+                  sx={{ maxWidth: 200, backgroundColor: '#f0f0f0', borderRadius: '8px', '& .MuiInputBase-input': { fontSize: '1.5rem', fontWeight: 'bold', color: '#666' } }}
+                />
+              </Box>
+            )}
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={saveExchangeRate}
+              sx={{ py: 1.5, px: 3 }}
+              disabled={userRole !== 'admin'}
+            >
+              Guardar
+            </Button>
+          </Box>
 
-  {lastUpdated && (
-    <Box sx={{ mt: 2 }}>
-      <Typography variant="body2" sx={{ color: '#666', mb: 1 }}>
-        Última actualización:
-      </Typography>
-      <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#1976d2', fontSize: '1.5rem' }}>
-        {lastUpdated}
-      </Typography>
-    </Box>
-  )}
-</Box>
+          {lastUpdated && (
+            <Box sx={{ mt: 2 }}>
+              <Typography variant="body2" sx={{ color: '#666', mb: 1 }}>
+                Última actualización:
+              </Typography>
+              <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#1976d2', fontSize: '1.5rem' }}>
+                {lastUpdated}
+              </Typography>
+            </Box>
+          )}
+        </Box>
 
         <Divider sx={{ my: 4, borderColor: '#e0e0e0' }} />
 

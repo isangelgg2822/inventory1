@@ -45,30 +45,23 @@ function Inventory() {
   const [editQuantity, setEditQuantity] = useState('');
   const [editPrice, setEditPrice] = useState('');
   const [editCategory, setEditCategory] = useState('');
-  const [userRole, setUserRole] = useState('user'); // Estado para el rol del usuario
-  const [error, setError] = useState(null); // Estado para errores
+  const [userRole, setUserRole] = useState('user');
+  const [error, setError] = useState(null);
+  const [open, setOpen] = useState(false); // Estado para controlar el Navbar
 
-  const categories = [
-    '',
-    'Alimentos',
-    'Bebidas',
-    'Hogar',
-  ];
+  const categories = ['', 'Alimentos', 'Bebidas', 'Hogar'];
 
   useEffect(() => {
     const fetchUserRole = async () => {
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      if (userError) {
+      const { data, error: userError } = await supabase.auth.getUser();
+      if (userError || !data?.user) {
         console.error('Error fetching user:', userError);
         setError('Error al obtener el usuario. Por favor, inicia sesión nuevamente.');
         return;
       }
-      if (user) {
-        const role = user.user_metadata?.role || 'user';
-        setUserRole(role);
-      } else {
-        setError('No se encontró un usuario autenticado.');
-      }
+
+      const role = data.user.user_metadata?.role || 'user';
+      setUserRole(role);
     };
 
     fetchUserRole();
@@ -110,12 +103,12 @@ function Inventory() {
       alert('Por favor, completa todos los campos obligatorios (Nombre, Cantidad, Precio)');
       return;
     }
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
+    const { data, error: userError } = await supabase.auth.getUser();
+    if (userError || !data?.user) {
       alert('No se pudo obtener el usuario autenticado');
       return;
     }
-    const userId = user.id;
+    const userId = data.user.id;
     const { error } = await supabase.from('products').insert([
       {
         name,
@@ -188,7 +181,7 @@ function Inventory() {
 
   if (error) {
     return (
-      <Container sx={{ mt: { xs: 2, sm: 4 }, mb: { xs: 2, sm: 4 } }}>
+      <Container sx={{ mt: { xs: 8, sm: 4 }, mb: { xs: 2, sm: 4 } }}>
         <Typography variant="h2" gutterBottom sx={{ fontSize: '2rem', fontWeight: 600 }}>
           Inventario
         </Typography>
@@ -201,12 +194,12 @@ function Inventory() {
     );
   }
 
-  const isAdmin = userRole === 'admin'; // Determinar si el usuario es admin
+  const isAdmin = userRole === 'admin';
 
   return (
     <>
-      <Navbar />
-      <Container>
+      <Navbar open={open} setOpen={setOpen} />
+      <Container sx={{ mt: { xs: 8, sm: 0 } }}>
         <Typography variant="h2" gutterBottom sx={{ fontSize: '2rem', fontWeight: 600 }}>
           Inventario
         </Typography>
@@ -223,6 +216,7 @@ function Inventory() {
               variant="outlined"
               size="small"
               sx={{ width: { xs: '100%', sm: '300px' } }}
+              disabled={!isAdmin}
             />
             <TextField
               label="Cantidad"
@@ -232,6 +226,7 @@ function Inventory() {
               size="small"
               type="number"
               sx={{ width: { xs: '100%', sm: '150px' } }}
+              disabled={!isAdmin}
             />
             <TextField
               label="Precio (USD)"
@@ -242,8 +237,9 @@ function Inventory() {
               type="number"
               InputProps={{ startAdornment: <InputAdornment position="start">$</InputAdornment> }}
               sx={{ width: { xs: '100%', sm: '150px' } }}
+              disabled={!isAdmin}
             />
-            <FormControl variant="outlined" sx={{ width: { xs: '100%', sm: '200px' } }}>
+            <FormControl variant="outlined" sx={{ width: { xs: '100%', sm: '200px' } }} disabled={!isAdmin}>
               <InputLabel id="category-label">Categoría (opcional)</InputLabel>
               <Select
                 labelId="category-label"
@@ -259,15 +255,20 @@ function Inventory() {
                 ))}
               </Select>
             </FormControl>
-            <Button
-              variant="contained"
-              color="primary"
-              onClick={addProduct}
-              startIcon={<AddIcon />}
-              sx={{ py: 1.5, px: 3, width: { xs: '100%', sm: 'auto' } }}
-            >
-              Añadir
-            </Button>
+            <Tooltip title={isAdmin ? "Añadir producto" : "No tienes permiso para añadir productos"}>
+              <span>
+                <Button
+                  variant="contained"
+                  color="primary"
+                  onClick={addProduct}
+                  startIcon={<AddIcon />}
+                  sx={{ py: 1.5, px: 3, width: { xs: '100%', sm: 'auto' } }}
+                  disabled={!isAdmin}
+                >
+                  Añadir
+                </Button>
+              </span>
+            </Tooltip>
           </Box>
         </Box>
 

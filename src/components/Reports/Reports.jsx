@@ -13,6 +13,13 @@ import {
   TableRow,
   TableCell,
   TableBody,
+  Alert,
+  TextField,
+  CircularProgress,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
 } from '@mui/material';
 import { Line } from 'react-chartjs-2';
 import {
@@ -24,15 +31,29 @@ import {
   CategoryScale,
   Tooltip,
   Legend,
+  Filler,
 } from 'chart.js';
 import { CSVLink } from 'react-csv';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import BarChartIcon from '@mui/icons-material/BarChart';
+import Navbar from '../Navbar';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable'; // Import autoTable directly
 
 // Registrar los componentes de Chart.js
-ChartJS.register(LineElement, PointElement, LinearScale, Title, CategoryScale, Tooltip, Legend);
+ChartJS.register(LineElement, PointElement, LinearScale, Title, CategoryScale, Tooltip, Legend, Filler);
+
+// Lista predefinida de métodos de pago basada en el Carrito
+const PAYMENT_METHODS = [
+  'Efectivo Bs',
+  'Divisa',
+  'Débito',
+  'Biopago',
+  'Pago Móvil',
+  'Avance de Efectivo',
+];
 
 function Reports() {
   const [startDate, setStartDate] = useState(null);
@@ -43,6 +64,40 @@ function Reports() {
   const [error, setError] = useState(null);
   const [paymentSummary, setPaymentSummary] = useState({});
   const [canceledSalesSummary, setCanceledSalesSummary] = useState({});
+  const [open, setOpen] = useState(false);
+  const [dateRangeOption, setDateRangeOption] = useState('');
+  const [paymentMethodFilter, setPaymentMethodFilter] = useState('');
+
+  const handleDateRangeChange = (option) => {
+    setDateRangeOption(option);
+    const today = new Date();
+    let newStartDate = null;
+    let newEndDate = today;
+
+    switch (option) {
+      case 'last7Days':
+        newStartDate = new Date(today);
+        newStartDate.setDate(today.getDate() - 7);
+        break;
+      case 'last30Days':
+        newStartDate = new Date(today);
+        newStartDate.setDate(today.getDate() - 30);
+        break;
+      case 'thisMonth':
+        newStartDate = new Date(today.getFullYear(), today.getMonth(), 1);
+        break;
+      case 'lastMonth':
+        newStartDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+        newEndDate = new Date(today.getFullYear(), today.getMonth(), 0);
+        break;
+      default:
+        newStartDate = null;
+        newEndDate = null;
+    }
+
+    setStartDate(newStartDate);
+    setEndDate(newEndDate);
+  };
 
   const fetchSalesByPeriod = async () => {
     if (!startDate || !endDate) {
@@ -57,16 +112,21 @@ function Reports() {
       const start = new Date(startDate).toISOString().split('T')[0];
       const end = new Date(endDate).toISOString().split('T')[0];
 
-      const { data: saleGroups, error: groupsError } = await supabase
+      let query = supabase
         .from('sale_groups')
         .select('sale_group_id, total, payment_method, created_at')
         .gte('created_at', `${start}T00:00:00.000Z`)
         .lte('created_at', `${end}T23:59:59.999Z`)
         .order('created_at', { ascending: true });
 
+      if (paymentMethodFilter) {
+        query = query.eq('payment_method', paymentMethodFilter);
+      }
+
+      const { data: saleGroups, error: groupsError } = await query;
+
       if (groupsError) {
-        console.error('Error fetching sale_groups:', groupsError);
-        throw new Error(`Error al cargar sale_groups: ${groupsError.message} (Código: ${groupsError.code})`);
+        throw new Error(`Error al cargar sale_groups: ${groupsError.message}`);
       }
 
       if (!saleGroups || saleGroups.length === 0) {
@@ -86,8 +146,7 @@ function Reports() {
         .in('sale_group_id', saleGroupIds);
 
       if (salesError) {
-        console.error('Error fetching sales:', salesError);
-        throw new Error(`Error al cargar sales: ${salesError.message} (Código: ${salesError.code})`);
+        throw new Error(`Error al cargar sales: ${salesError.message}`);
       }
 
       const canceledSaleGroups = new Set();
@@ -150,7 +209,6 @@ function Reports() {
       }, {});
       setCanceledSalesSummary(canceledSummary);
     } catch (error) {
-      console.error('Error fetching sales by period:', error);
       setError(`Error al cargar los datos de ventas: ${error.message}. Por favor, intenta de nuevo.`);
       setSalesData([]);
       setTotalSales(0);
@@ -159,6 +217,70 @@ function Reports() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const exportToPDF = () => {
+    const doc = new jsPDF();
+    // Apply the autoTable plugin to the jsPDF instance
+    autoTable(doc, {});
+
+    doc.setFontSize(18);
+    doc.text('Reporte de Ventas', 14, 22);
+
+    doc.setFontSize(12);
+    doc.text(
+      `Período: ${startDate?.toISOString().split('T')[0]} a ${endDate?.toISOString().split('T')[0]}`,
+      14,
+      32
+    );
+
+    doc.setFontSize(12);
+    doc.text(`Total de Ventas: Bs. ${totalSales.toFixed(2)}`, 14, 42);
+    doc.text(
+      `Promedio Diario: Bs. ${(totalSales / salesData.length || 0).toFixed(2)}`,
+      14,
+      52
+    );
+
+    if (salesData.length > 0) {
+      doc.setFontSize(14);
+      doc.text('Ventas Diarias', 14, 70);
+      autoTable(doc, {
+        startY: 80,
+        head: [['Fecha', 'Ventas (Bs.)']],
+        body: salesData.map(sale => [sale.date, sale.total.toFixed(2)]),
+      });
+    }
+
+    if (Object.keys(paymentSummary).length > 0) {
+      doc.setFontSize(14);
+      doc.text('Resumen por Método de Pago', 14, doc.lastAutoTable.finalY + 20);
+      autoTable(doc, {
+        startY: doc.lastAutoTable.finalY + 30,
+        head: [['Método de Pago', 'Total (Bs.)', 'Transacciones']],
+        body: Object.entries(paymentSummary).map(([method, data]) => [
+          method,
+          data.total.toFixed(2),
+          data.transactions,
+        ]),
+      });
+    }
+
+    if (Object.keys(canceledSalesSummary).length > 0) {
+      doc.setFontSize(14);
+      doc.text('Resumen de Ventas Anuladas', 14, doc.lastAutoTable.finalY + 20);
+      autoTable(doc, {
+        startY: doc.lastAutoTable.finalY + 30,
+        head: [['Método de Pago', 'Total Anulado (Bs.)', 'Transacciones Anuladas']],
+        body: Object.entries(canceledSalesSummary).map(([method, data]) => [
+          method,
+          data.total.toFixed(2),
+          data.transactions,
+        ]),
+      });
+    }
+
+    doc.save(`reporte-ventas-${startDate?.toISOString().split('T')[0]}-a-${endDate?.toISOString().split('T')[0]}.pdf`);
   };
 
   const chartData = {
@@ -243,185 +365,300 @@ function Reports() {
   }));
 
   return (
-    <Container>
-      <Typography variant="h2" gutterBottom sx={{ fontSize: '2rem',tWeight: 600 }}>
-        Reportes
-      </Typography>
-
-      <Box sx={{ mb: 4, backgroundColor: '#f5f5f5', p: 3, borderRadius: '12px', boxShadow: 1 }}>
-        <Typography variant="h6" gutterBottom sx={{ color: '#1976d2', fontWeight: 500 }}>
-          Ventas por Período
+    <>
+      <Navbar open={open} setOpen={setOpen} />
+      <Container sx={{ mt: { xs: 8, sm: 0 } }}>
+        <Typography variant="h2" gutterBottom sx={{ fontSize: '2rem', fontWeight: 600 }}>
+          Reportes
         </Typography>
-        <LocalizationProvider dateAdapter={AdapterDateFns}>
-          <Grid container spacing={2} sx={{ mb: 2 }}>
-          <Grid item xs={12} sm={4} md={6} lg={3}>
 
-              <DatePicker
-                label="Fecha de Inicio"
-                value={startDate}
-                onChange={(newValue) => setStartDate(newValue)}
-                renderInput={(params) => <TextField {...params} fullWidth />}
-              />
+        {error && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            {error}
+          </Alert>
+        )}
+
+        <Box sx={{ mb: 4, backgroundColor: '#f5f5f5', p: 3, borderRadius: '12px', boxShadow: 1 }}>
+          <Typography variant="h6" gutterBottom sx={{ color: '#1976d2', fontWeight: 500 }}>
+            Ventas por Período
+          </Typography>
+          <Grid
+            container
+            spacing={2}
+            sx={{
+              mb: 2,
+              display: 'grid',
+              gridTemplateColumns: {
+                xs: '1fr',
+                sm: 'repeat(3, 1fr)',
+                md: 'repeat(2, 1fr)',
+                lg: 'repeat(4, 1fr)',
+              },
+              gap: 2,
+            }}
+          >
+            <Grid>
+              <FormControl fullWidth>
+                <InputLabel>Rango de Fechas</InputLabel>
+                <Select
+                  value={dateRangeOption}
+                  onChange={(e) => handleDateRangeChange(e.target.value)}
+                  label="Rango de Fechas"
+                >
+                  <MenuItem value="">Seleccionar Manualmente</MenuItem>
+                  <MenuItem value="last7Days">Últimos 7 Días</MenuItem>
+                  <MenuItem value="last30Days">Últimos 30 Días</MenuItem>
+                  <MenuItem value="thisMonth">Este Mes</MenuItem>
+                  <MenuItem value="lastMonth">Mes Pasado</MenuItem>
+                </Select>
+              </FormControl>
             </Grid>
-            <Grid item xs={12} sm={4}>
-              <DatePicker
-                label="Fecha de Fin"
-                value={endDate}
-                onChange={(newValue) => setEndDate(newValue)}
-                renderInput={(params) => <TextField {...params} fullWidth />}
-              />
+            <Grid sx={{ gridColumn: { xs: '1 / 2', sm: '2 / 3', md: '1 / 2', lg: '2 / 3' } }}>
+              <FormControl fullWidth>
+                <InputLabel>Método de Pago</InputLabel>
+                <Select
+                  value={paymentMethodFilter}
+                  onChange={(e) => setPaymentMethodFilter(e.target.value)}
+                  label="Método de Pago"
+                >
+                  <MenuItem value="">Todos</MenuItem>
+                  {PAYMENT_METHODS.map((method) => (
+                    <MenuItem key={method} value={method}>
+                      {method}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
             </Grid>
-            <Grid item xs={12} sm={4}>
+            <Grid sx={{ gridColumn: { xs: '1 / 2', sm: '3 / 4', md: '2 / 3', lg: '3 / 4' } }} />
+          </Grid>
+
+          <LocalizationProvider dateAdapter={AdapterDateFns}>
+            <Grid
+              container
+              spacing={2}
+              sx={{
+                mb: 2,
+                display: 'grid',
+                gridTemplateColumns: {
+                  xs: '1fr',
+                  sm: 'repeat(3, 1fr)',
+                  md: 'repeat(2, 1fr)',
+                  lg: 'repeat(4, 1fr)',
+                },
+                gap: 2,
+              }}
+            >
+              <Grid>
+                <DatePicker
+                  label="Fecha de Inicio"
+                  value={startDate}
+                  onChange={(newValue) => {
+                    setStartDate(newValue);
+                    setDateRangeOption('');
+                  }}
+                  slotProps={{ textField: { fullWidth: true } }}
+                />
+              </Grid>
+              <Grid sx={{ gridColumn: { xs: '1 / 2', sm: '2 / 3', md: '1 / 2', lg: '2 / 3' } }}>
+                <DatePicker
+                  label="Fecha de Fin"
+                  value={endDate}
+                  onChange={(newValue) => {
+                    setEndDate(newValue);
+                    setDateRangeOption('');
+                  }}
+                  slotProps={{ textField: { fullWidth: true } }}
+                />
+              </Grid>
+              <Grid sx={{ gridColumn: { xs: '1 / 2', sm: '3 / 4', md: '2 / 3', lg: '3 / 4' } }}>
+                <Button
+                  variant="contained"
+                  color="primary"
+                  onClick={fetchSalesByPeriod}
+                  disabled={loading}
+                  startIcon={<BarChartIcon />}
+                  sx={{ height: '56px', py: 1.5, px: 3, width: '100%' }}
+                >
+                  {loading ? 'Cargando...' : 'Generar Reporte'}
+                </Button>
+              </Grid>
+            </Grid>
+          </LocalizationProvider>
+
+          {loading && (
+            <Box sx={{ display: 'flex', justifyContent: 'center', my: 2 }}>
+              <CircularProgress />
+            </Box>
+          )}
+
+          {salesData.length > 0 && (
+            <>
+              <Grid
+                container
+                spacing={3}
+                sx={{
+                  mb: 4,
+                  display: 'grid',
+                  gridTemplateColumns: {
+                    xs: '1fr',
+                    sm: 'repeat(2, 1fr)',
+                  },
+                  gap: 3,
+                }}
+              >
+                <Grid>
+                  <Card sx={{ backgroundColor: '#e3f2fd', boxShadow: 3, borderRadius: '12px' }}>
+                    <CardContent>
+                      <Typography variant="h6" color="text.secondary">
+                        Total de Ventas
+                      </Typography>
+                      <Typography variant="h4" sx={{ color: '#1976d2', fontWeight: 'bold' }}>
+                        Bs. {totalSales.toFixed(2)}
+                      </Typography>
+                    </CardContent>
+                  </Card>
+                </Grid>
+                <Grid>
+                  <Card sx={{ backgroundColor: '#e0f7fa', boxShadow: 3, borderRadius: '12px' }}>
+                    <CardContent>
+                      <Typography variant="h6" color="text.secondary">
+                        Promedio Diario
+                      </Typography>
+                      <Typography variant="h4" sx={{ color: '#0288d1', fontWeight: 'bold' }}>
+                        Bs. {(totalSales / salesData.length).toFixed(2)}
+                      </Typography>
+                    </CardContent>
+                  </Card>
+                </Grid>
+              </Grid>
+
+              <Box sx={{ maxWidth: '800px', mx: 'auto', mb: 4 }}>
+                <Card sx={{ boxShadow: 3, borderRadius: '12px', p: 2 }}>
+                  <Line data={chartData} options={chartOptions} />
+                </Card>
+              </Box>
+
+              {Object.keys(paymentSummary).length > 0 && (
+                <Box sx={{ mb: 4 }}>
+                  <Typography variant="h6" gutterBottom sx={{ color: '#1976d2', fontWeight: 500 }}>
+                    Resumen por Método de Pago
+                  </Typography>
+                  <Table sx={{ mb: 2 }}>
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>Método de Pago</TableCell>
+                        <TableCell>Total (Bs.)</TableCell>
+                        <TableCell>Transacciones</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {Object.entries(paymentSummary).map(([method, data]) => (
+                        <TableRow key={method}>
+                          <TableCell>{method}</TableCell>
+                          <TableCell>{data.total.toFixed(2)}</TableCell>
+                          <TableCell>{data.transactions}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    sx={{ mt: 2, mr: 2, background: 'linear-gradient(90deg, #1976d2, #42a5f5)' }}
+                  >
+                    <CSVLink
+                      data={paymentCsvData}
+                      filename={`resumen-metodos-pago-${startDate?.toISOString().split('T')[0]}-a-${endDate?.toISOString().split('T')[0]}.csv`}
+                      style={{ textDecoration: 'none', color: '#fff' }}
+                    >
+                      Exportar Resumen a CSV
+                    </CSVLink>
+                  </Button>
+                  <Button
+                    variant="contained"
+                    color="secondary"
+                    onClick={exportToPDF}
+                    sx={{ mt: 2, background: 'linear-gradient(90deg, #d81b60, #f06292)' }}
+                  >
+                    Exportar Resumen a PDF
+                  </Button>
+                </Box>
+              )}
+
+              {Object.keys(canceledSalesSummary).length > 0 && (
+                <Box sx={{ mb: 4 }}>
+                  <Typography variant="h6" gutterBottom sx={{ color: '#1976d2', fontWeight: 500 }}>
+                    Resumen de Ventas Anuladas
+                  </Typography>
+                  <Table sx={{ mb: 2 }}>
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>Método de Pago</TableCell>
+                        <TableCell>Total Anulado (Bs.)</TableCell>
+                        <TableCell>Transacciones Anuladas</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {Object.entries(canceledSalesSummary).map(([method, data]) => (
+                        <TableRow key={method}>
+                          <TableCell>{method}</TableCell>
+                          <TableCell>{data.total.toFixed(2)}</TableCell>
+                          <TableCell>{data.transactions}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    sx={{ mt: 2, mr: 2, background: 'linear-gradient(90deg, #1976d2, #42a5f5)' }}
+                  >
+                    <CSVLink
+                      data={canceledCsvData}
+                      filename={`resumen-ventas-anuladas-${startDate?.toISOString().split('T')[0]}-a-${endDate?.toISOString().split('T')[0]}.csv`}
+                      style={{ textDecoration: 'none', color: '#fff' }}
+                    >
+                      Exportar Anulaciones a CSV
+                    </CSVLink>
+                  </Button>
+                  <Button
+                    variant="contained"
+                    color="secondary"
+                    onClick={exportToPDF}
+                    sx={{ mt: 2, background: 'linear-gradient(90deg, #d81b60, #f06292)' }}
+                  >
+                    Exportar Anulaciones a PDF
+                  </Button>
+                </Box>
+              )}
+
               <Button
                 variant="contained"
                 color="primary"
-                onClick={fetchSalesByPeriod}
-                disabled={loading}
-                startIcon={<BarChartIcon />}
-                sx={{ height: '56px', py: 1.5, px: 3 }}
+                sx={{ mt: 2, mr: 2, background: 'linear-gradient(90deg, #1976d2, #42a5f5)' }}
               >
-                {loading ? 'Cargando...' : 'Generar Reporte'}
+                <CSVLink
+                  data={csvData}
+                  filename={`reporte-ventas-${startDate?.toISOString().split('T')[0]}-a-${endDate?.toISOString().split('T')[0]}.csv`}
+                  style={{ textDecoration: 'none', color: '#fff' }}
+                >
+                  Exportar Ventas a CSV
+                </CSVLink>
               </Button>
-            </Grid>
-          </Grid>
-        </LocalizationProvider>
-
-        {error && (
-          <Typography color="error" gutterBottom>
-            {error}
-          </Typography>
-        )}
-
-        {salesData.length > 0 && (
-          <>
-            <Grid container spacing={3} sx={{ mb: 4 }}>
-              <Grid item xs={12} sm={6}>
-                <Card sx={{ backgroundColor: '#e3f2fd', boxShadow: 3, borderRadius: '12px' }}>
-                  <CardContent>
-                    <Typography variant="h6" color="text.secondary">
-                      Total de Ventas
-                    </Typography>
-                    <Typography variant="h4" sx={{ color: '#1976d2', fontWeight: 'bold' }}>
-                      Bs. {totalSales.toFixed(2)}
-                    </Typography>
-                  </CardContent>
-                </Card>
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <Card sx={{ backgroundColor: '#e0f7fa', boxShadow: 3, borderRadius: '12px' }}>
-                  <CardContent>
-                    <Typography variant="h6" color="text.secondary">
-                      Promedio Diario
-                    </Typography>
-                    <Typography variant="h4" sx={{ color: '#0288d1', fontWeight: 'bold' }}>
-                      Bs. {(totalSales / salesData.length).toFixed(2)}
-                    </Typography>
-                  </CardContent>
-                </Card>
-              </Grid>
-            </Grid>
-
-            <Box sx={{ maxWidth: '800px', mx: 'auto', mb: 4 }}>
-              <Card sx={{ boxShadow: 3, borderRadius: '12px', p: 2 }}>
-                <Line data={chartData} options={chartOptions} />
-              </Card>
-            </Box>
-
-            {Object.keys(paymentSummary).length > 0 && (
-              <Box sx={{ mb: 4 }}>
-                <Typography variant="h6" gutterBottom sx={{ color: '#1976d2', fontWeight: 500 }}>
-                  Resumen por Método de Pago
-                </Typography>
-                <Table sx={{ mb: 2 }}>
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Método de Pago</TableCell>
-                      <TableCell>Total (Bs.)</TableCell>
-                      <TableCell>Transacciones</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {Object.entries(paymentSummary).map(([method, data]) => (
-                      <TableRow key={method}>
-                        <TableCell>{method}</TableCell>
-                        <TableCell>{data.total.toFixed(2)}</TableCell>
-                        <TableCell>{data.transactions}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-                <Button
-                  variant="contained"
-                  color="primary"
-                  sx={{ mt: 2, background: 'linear-gradient(90deg, #1976d2, #42a5f5)' }}
-                >
-                  <CSVLink
-                    data={paymentCsvData}
-                    filename={`resumen-metodos-pago-${startDate?.toISOString().split('T')[0]}-a-${endDate?.toISOString().split('T')[0]}.csv`}
-                    style={{ textDecoration: 'none', color: '#fff' }}
-                  >
-                    Exportar Resumen a CSV
-                  </CSVLink>
-                </Button>
-              </Box>
-            )}
-
-            {Object.keys(canceledSalesSummary).length > 0 && (
-              <Box sx={{ mb: 4 }}>
-                <Typography variant="h6" gutterBottom sx={{ color: '#1976d2', fontWeight: 500 }}>
-                  Resumen de Ventas Anuladas
-                </Typography>
-                <Table sx={{ mb: 2 }}>
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Método de Pago</TableCell>
-                      <TableCell>Total Anulado (Bs.)</TableCell>
-                      <TableCell>Transacciones Anuladas</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {Object.entries(canceledSalesSummary).map(([method, data]) => (
-                      <TableRow key={method}>
-                        <TableCell>{method}</TableCell>
-                        <TableCell>{data.total.toFixed(2)}</TableCell>
-                        <TableCell>{data.transactions}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-                <Button
-                  variant="contained"
-                  color="primary"
-                  sx={{ mt: 2, background: 'linear-gradient(90deg, #1976d2, #42a5f5)' }}
-                >
-                  <CSVLink
-                    data={canceledCsvData}
-                    filename={`resumen-ventas-anuladas-${startDate?.toISOString().split('T')[0]}-a-${endDate?.toISOString().split('T')[0]}.csv`}
-                    style={{ textDecoration: 'none', color: '#fff' }}
-                  >
-                    Exportar Anulaciones a CSV
-                  </CSVLink>
-                </Button>
-              </Box>
-            )}
-
-            <Button
-              variant="contained"
-              color="primary"
-              sx={{ mt: 2, background: 'linear-gradient(90deg, #1976d2, #42a5f5)' }}
-            >
-              <CSVLink
-                data={csvData}
-                filename={`reporte-ventas-${startDate?.toISOString().split('T')[0]}-a-${endDate?.toISOString().split('T')[0]}.csv`}
-                style={{ textDecoration: 'none', color: '#fff' }}
+              <Button
+                variant="contained"
+                color="secondary"
+                onClick={exportToPDF}
+                sx={{ mt: 2, background: 'linear-gradient(90deg, #d81b60, #f06292)' }}
               >
-                Exportar Ventas a CSV
-              </CSVLink>
-            </Button>
-          </>
-        )}
-      </Box>
-    </Container>
+                Exportar Ventas a PDF
+              </Button>
+            </>
+          )}
+        </Box>
+      </Container>
+    </>
   );
 }
 
