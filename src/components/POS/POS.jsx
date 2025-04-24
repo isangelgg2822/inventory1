@@ -1284,6 +1284,9 @@ function PointOfSale() {
       </Dialog>
     </Box>
   );
+
+//esta listo para el commit
+
 }
 
 export default PointOfSale;
