@@ -149,7 +149,7 @@ function CartDrawer({
     }
   };
 
-  const cartSubtotal = cart.reduce((sum, item) => sum + item.subtotalBs, 0);
+  // const cartSubtotal = cart.reduce((sum, item) => sum + item.subtotalBs, 0);
   const cartTotal = cart.reduce((sum, item) => sum + item.totalBs, 0);
 
   return (
@@ -427,12 +427,12 @@ function CartDrawer({
                 Limpiar Carrito
               </Button>
             )}
-            <Divider sx={{ borderStyle: 'dashed', my: 1, borderColor: '#666' }} />
+            {/* <Divider sx={{ borderStyle: 'dashed', my: 1, borderColor: '#666' }} />
             <Box sx={{ display: 'flex', justifyContent: 'space-between', fontSize: { xs: '10px', sm: '12px', md: '14px', lg: '16px' }, mb: 0.5 }}>
               <Typography>SUBTOTAL Bs.</Typography>
               <Typography>Bs. {cartSubtotal.toFixed(2)}</Typography>
             </Box>
-            <Divider sx={{ borderStyle: 'dashed', my: 1, borderColor: '#666' }} />
+            <Divider sx={{ borderStyle: 'dashed', my: 1, borderColor: '#666' }} /> */}
             <Box
               sx={{
                 display: 'flex',

@@ -90,10 +90,10 @@ function TicketModal({ openTicket, setOpenTicket, saleDetails, cashierName, isMo
               .join('') ?? ''}
           </div>
           <div class="divider"></div>
-          <div style="display: flex; justify-content: space-between; margin: 2px 0;">
-            <span>SUBTOTAL Bs.</span>
-            <span>Bs. ${(saleDetails?.subtotal ?? 0).toFixed(2)}</span>
-          </div>
+          // <div style="display: flex; justify-content: space-between; margin: 2px 0;">
+          //   <span>SUBTOTAL Bs.</span>
+          //   <span>Bs. ${(saleDetails?.subtotal ?? 0).toFixed(2)}</span>
+          // </div>
           <div style="display: flex; justify-content: space-between; margin: 2px 0;">
             <span>IVA (16%)</span>
             <span>Bs. ${(saleDetails?.tax ?? 0).toFixed(2)}</span>
@@ -181,11 +181,11 @@ function TicketModal({ openTicket, setOpenTicket, saleDetails, cashierName, isMo
             )) ?? null}
           </Box>
           <Divider sx={{ borderStyle: 'dashed', my: 0.5, borderColor: '#666' }} />
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'monospace', fontSize: { xs: '8px', sm: '10px', md: '12px' } }}>
+          {/* <Box sx={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'monospace', fontSize: { xs: '8px', sm: '10px', md: '12px' } }}>
             <Typography>SUBTOTAL Bs.</Typography>
             <Typography>Bs. {(saleDetails?.subtotal ?? 0).toFixed(2)}</Typography>
           </Box>
-          <Divider sx={{ borderStyle: 'dashed', my: 0.5, borderColor: '#666' }} />
+          <Divider sx={{ borderStyle: 'dashed', my: 0.5, borderColor: '#666' }} /> */}
           <Box
             sx={{
               display: 'flex',

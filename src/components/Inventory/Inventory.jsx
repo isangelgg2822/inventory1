@@ -51,6 +51,53 @@ function Inventory() {
 
   const categories = ['', 'Alimentos', 'Bebidas', 'Hogar'];
 
+  // Función para formatear el precio como cadena con 3 decimales
+  const formatPrice = (value) => {
+    let val = value || '';
+    // Separar la parte entera y decimal
+    let [integerPart, decimalPart = ''] = val.split('.');
+    
+    // Limpiar la parte entera (eliminar caracteres no numéricos, pero permitir signo negativo)
+    integerPart = integerPart.replace(/[^0-9-]/g, '');
+    if (integerPart === '' || integerPart === '-') integerPart = '0';
+    
+    // Limpiar la parte decimal (solo números)
+    decimalPart = decimalPart.replace(/[^0-9]/g, '');
+    
+    // Ajustar la parte decimal a 3 dígitos
+    if (decimalPart.length === 0) {
+      decimalPart = '000';
+    } else if (decimalPart.length === 1) {
+      decimalPart += '00';
+    } else if (decimalPart.length === 2) {
+      decimalPart += '0';
+    } else if (decimalPart.length > 3) {
+      decimalPart = decimalPart.substring(0, 3);
+    }
+    
+    return `${integerPart}.${decimalPart}`;
+  };
+
+  // Función para mostrar el precio con 3 decimales en la UI
+  const displayPrice = (value) => {
+    let val = value || '';
+    // Separar la parte entera y decimal
+    let [integerPart, decimalPart = ''] = val.split('.');
+    
+    // Ajustar la parte decimal a 3 dígitos
+    if (decimalPart.length === 0) {
+      decimalPart = '000';
+    } else if (decimalPart.length === 1) {
+      decimalPart += '00';
+    } else if (decimalPart.length === 2) {
+      decimalPart += '0';
+    } else if (decimalPart.length > 3) {
+      decimalPart = decimalPart.substring(0, 3);
+    }
+    
+    return `${integerPart}.${decimalPart}`;
+  };
+
   useEffect(() => {
     const fetchUserRole = async () => {
       const { data, error: userError } = await supabase.auth.getUser();
@@ -109,11 +156,12 @@ function Inventory() {
       return;
     }
     const userId = data.user.id;
+    const formattedPrice = formatPrice(price);
     const { error } = await supabase.from('products').insert([
       {
         name,
         quantity: parseInt(quantity),
-        price: parseFloat(price),
+        price: formattedPrice,
         category: category || null,
         user_id: userId,
       },
@@ -150,7 +198,7 @@ function Inventory() {
     setSelectedProduct(product);
     setEditName(product.name);
     setEditQuantity(product.quantity.toString());
-    setEditPrice(product.price.toString());
+    setEditPrice(product.price || '0.000');
     setEditCategory(product.category || '');
     setOpenEditModal(true);
   };
@@ -160,12 +208,13 @@ function Inventory() {
       alert('Por favor, completa todos los campos obligatorios (Nombre, Cantidad, Precio)');
       return;
     }
+    const formattedPrice = formatPrice(editPrice);
     const { error } = await supabase
       .from('products')
       .update({
         name: editName,
         quantity: parseInt(editQuantity),
-        price: parseFloat(editPrice),
+        price: formattedPrice,
         category: editCategory || null,
       })
       .eq('id', selectedProduct.id);
@@ -234,7 +283,8 @@ function Inventory() {
               onChange={(e) => setPrice(e.target.value)}
               variant="outlined"
               size="small"
-              type="number"
+              type="text"
+              inputProps={{ pattern: "\\d*\\.?\\d{0,3}" }}
               InputProps={{ startAdornment: <InputAdornment position="start">$</InputAdornment> }}
               sx={{ width: { xs: '100%', sm: '150px' } }}
               disabled={!isAdmin}
@@ -314,7 +364,7 @@ function Inventory() {
                   <TableCell sx={{ fontSize: '0.8rem' }}>{product.name}</TableCell>
                   <TableCell sx={{ fontSize: '0.8rem' }}>{product.category || '-'}</TableCell>
                   <TableCell sx={{ fontSize: '0.8rem' }}>{product.quantity}</TableCell>
-                  <TableCell sx={{ fontSize: '0.8rem' }}>${product.price.toFixed(2)}</TableCell>
+                  <TableCell sx={{ fontSize: '0.8rem' }}>${displayPrice(product.price)}</TableCell>
                   <TableCell>
                     <Tooltip title={isAdmin ? "Editar" : "No tienes permiso para editar"}>
                       <span>
@@ -404,7 +454,8 @@ function Inventory() {
               value={editPrice}
               onChange={(e) => setEditPrice(e.target.value)}
               variant="outlined"
-              type="number"
+              type="text"
+              inputProps={{ pattern: "\\d*\\.?\\d{0,3}" }}
               InputProps={{ startAdornment: <InputAdornment position="start">$</InputAdornment> }}
               fullWidth
             />
