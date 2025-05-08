@@ -84,7 +84,7 @@ function PointOfSale() {
 
   // Fetch products
   const fetchProducts = useCallback(async () => {
-    const { data, error } = await supabase.from('products').select('*').limit(50);
+    const { data, error } = await supabase.from('products').select('*');
     if (error) {
       setError(`Error al recuperar los productos: ${error.message} (Código: ${error.code})`);
       setProducts([]);
