@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { supabase } from '../../supabase';
+import { startOfDay, endOfDay, format } from 'date-fns';
 import {
   Container,
   Typography,
@@ -14,7 +15,6 @@ import {
   TableCell,
   TableBody,
   Alert,
-  TextField,
   CircularProgress,
   Select,
   MenuItem,
@@ -40,7 +40,7 @@ import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import BarChartIcon from '@mui/icons-material/BarChart';
 import Navbar from '../Navbar';
 import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable'; // Import autoTable directly
+import autoTable from 'jspdf-autotable';
 
 // Registrar los componentes de Chart.js
 ChartJS.register(LineElement, PointElement, LinearScale, Title, CategoryScale, Tooltip, Legend, Filler);
@@ -109,14 +109,24 @@ function Reports() {
     setError(null);
 
     try {
-      const start = new Date(startDate).toISOString().split('T')[0];
-      const end = new Date(endDate).toISOString().split('T')[0];
+      // Asegurarnos de que startDate y endDate sean objetos Date válidos
+      const startLocal = startDate instanceof Date ? startDate : new Date(startDate);
+      const endLocal = endDate instanceof Date ? endDate : new Date(endDate);
+
+      if (isNaN(startLocal) || isNaN(endLocal)) {
+        throw new Error('Fechas inválidas seleccionadas.');
+      }
+
+      // Ajustamos las fechas al principio y final del día (en la zona horaria local del navegador)
+      const start = startOfDay(startLocal).toISOString();
+      const end = endOfDay(endLocal).toISOString();
+      console.log('Query Range:', `${start} to ${end}`);
 
       let query = supabase
         .from('sale_groups')
         .select('sale_group_id, total, payment_method, created_at')
-        .gte('created_at', `${start}T00:00:00.000Z`)
-        .lte('created_at', `${end}T23:59:59.999Z`)
+        .gte('created_at', start)
+        .lte('created_at', end)
         .order('created_at', { ascending: true });
 
       if (paymentMethodFilter) {
@@ -124,6 +134,7 @@ function Reports() {
       }
 
       const { data: saleGroups, error: groupsError } = await query;
+      console.log('Sale Groups Retrieved:', saleGroups);
 
       if (groupsError) {
         throw new Error(`Error al cargar sale_groups: ${groupsError.message}`);
@@ -169,13 +180,27 @@ function Reports() {
       const activeSaleGroups = saleGroups.filter(group => !canceledSaleGroups.has(group.sale_group_id));
       const canceledSaleGroupsList = saleGroups.filter(group => canceledSaleGroups.has(group.sale_group_id));
 
+      // Agrupamos las ventas por fecha usando las fechas devueltas por Supabase
       const salesByDate = activeSaleGroups.reduce((acc, group) => {
-        const date = group.created_at.split('T')[0];
-        if (!acc[date]) {
-          acc[date] = 0;
+        try {
+          const date = new Date(group.created_at);
+          if (isNaN(date)) {
+            console.warn('Fecha inválida en created_at:', group.created_at);
+            return acc;
+          }
+
+          // Supabase devuelve created_at ajustado a America/Caracas, así que lo usamos directamente
+          const dateString = format(date, 'dd/MM/yyyy');
+
+          if (!acc[dateString]) {
+            acc[dateString] = 0;
+          }
+          acc[dateString] += group.total || 0;
+          return acc;
+        } catch (err) {
+          console.error('Error al procesar fecha:', group.created_at, err);
+          return acc;
         }
-        acc[date] += group.total || 0;
-        return acc;
       }, {});
 
       const formattedSalesData = Object.entries(salesByDate).map(([date, total]) => ({
@@ -209,6 +234,7 @@ function Reports() {
       }, {});
       setCanceledSalesSummary(canceledSummary);
     } catch (error) {
+      console.error('Error en fetchSalesByPeriod:', error);
       setError(`Error al cargar los datos de ventas: ${error.message}. Por favor, intenta de nuevo.`);
       setSalesData([]);
       setTotalSales(0);
@@ -221,7 +247,6 @@ function Reports() {
 
   const exportToPDF = () => {
     const doc = new jsPDF();
-    // Apply the autoTable plugin to the jsPDF instance
     autoTable(doc, {});
 
     doc.setFontSize(18);
@@ -229,7 +254,7 @@ function Reports() {
 
     doc.setFontSize(12);
     doc.text(
-      `Período: ${startDate?.toISOString().split('T')[0]} a ${endDate?.toISOString().split('T')[0]}`,
+      `Período: ${startDate ? format(startDate, 'yyyy-MM-dd') : ''} a ${endDate ? format(endDate, 'yyyy-MM-dd') : ''}`,
       14,
       32
     );
@@ -280,7 +305,7 @@ function Reports() {
       });
     }
 
-    doc.save(`reporte-ventas-${startDate?.toISOString().split('T')[0]}-a-${endDate?.toISOString().split('T')[0]}.pdf`);
+    doc.save(`reporte-ventas-${startDate ? format(startDate, 'yyyy-MM-dd') : 'inicio'}-a-${endDate ? format(endDate, 'yyyy-MM-dd') : 'fin'}.pdf`);
   };
 
   const chartData = {
@@ -569,7 +594,7 @@ function Reports() {
                   >
                     <CSVLink
                       data={paymentCsvData}
-                      filename={`resumen-metodos-pago-${startDate?.toISOString().split('T')[0]}-a-${endDate?.toISOString().split('T')[0]}.csv`}
+                      filename={`resumen-metodos-pago-${startDate ? format(startDate, 'yyyy-MM-dd') : 'inicio'}-a-${endDate ? format(endDate, 'yyyy-MM-dd') : 'fin'}.csv`}
                       style={{ textDecoration: 'none', color: '#fff' }}
                     >
                       Exportar Resumen a CSV
@@ -616,7 +641,7 @@ function Reports() {
                   >
                     <CSVLink
                       data={canceledCsvData}
-                      filename={`resumen-ventas-anuladas-${startDate?.toISOString().split('T')[0]}-a-${endDate?.toISOString().split('T')[0]}.csv`}
+                      filename={`resumen-ventas-anuladas-${startDate ? format(startDate, 'yyyy-MM-dd') : 'inicio'}-a-${endDate ? format(endDate, 'yyyy-MM-dd') : 'fin'}.csv`}
                       style={{ textDecoration: 'none', color: '#fff' }}
                     >
                       Exportar Anulaciones a CSV
@@ -640,7 +665,7 @@ function Reports() {
               >
                 <CSVLink
                   data={csvData}
-                  filename={`reporte-ventas-${startDate?.toISOString().split('T')[0]}-a-${endDate?.toISOString().split('T')[0]}.csv`}
+                  filename={`reporte-ventas-${startDate ? format(startDate, 'yyyy-MM-dd') : 'inicio'}-a-${endDate ? format(endDate, 'yyyy-MM-dd') : 'fin'}.csv`}
                   style={{ textDecoration: 'none', color: '#fff' }}
                 >
                   Exportar Ventas a CSV
