@@ -6,7 +6,7 @@ import TextField from '@mui/material/TextField';
 import List from '@mui/material/List';
 import ListItem from '@mui/material/ListItem';
 import ListItemText from '@mui/material/ListItemText';
-import ListItemButton from '@mui/material/ListItemButton'; // Import ListItemButton
+import ListItemButton from '@mui/material/ListItemButton';
 import Button from '@mui/material/Button';
 import Divider from '@mui/material/Divider';
 import IconButton from '@mui/material/IconButton';
@@ -44,8 +44,9 @@ function CartDrawer({
   const [quantity, setQuantity] = useState('');
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [lastRemovedItem, setLastRemovedItem] = useState(null);
+  const [secondPaymentMethod, setSecondPaymentMethod] = useState('');
+  const [splitAmount, setSplitAmount] = useState('');
 
-  // Load cart from localStorage on mount
   useEffect(() => {
     const savedCart = localStorage.getItem('cart');
     if (savedCart) {
@@ -53,7 +54,6 @@ function CartDrawer({
     }
   }, [setCart]);
 
-  // Save cart to localStorage on change
   useEffect(() => {
     localStorage.setItem('cart', JSON.stringify(cart));
   }, [cart]);
@@ -116,7 +116,7 @@ function CartDrawer({
       {
         ...selectedProduct,
         quantity: quantityToAdd,
-        stockQuantity: selectedProduct.quantity, // Store the stock quantity
+        stockQuantity: selectedProduct.quantity,
         priceWithoutIvaBs,
         ivaBs,
         priceWithIvaBs,
@@ -149,7 +149,6 @@ function CartDrawer({
     }
   };
 
-  // const cartSubtotal = cart.reduce((sum, item) => sum + item.subtotalBs, 0);
   const cartTotal = cart.reduce((sum, item) => sum + item.totalBs, 0);
 
   return (
@@ -159,7 +158,7 @@ function CartDrawer({
       onClose={() => setCartDrawerOpen(false)}
       sx={{
         '& .MuiDrawer-paper': {
-          width: { xs: 'min(350px, 90%)', sm: '400px', md: '450px', lg: '500px' }, // Responsive width using object syntax
+          width: { xs: 'min(350px, 90%)', sm: '400px', md: '450px', lg: '500px' },
           bgcolor: 'background.paper',
           height: '100%',
           top: 0,
@@ -427,12 +426,6 @@ function CartDrawer({
                 Limpiar Carrito
               </Button>
             )}
-            {/* <Divider sx={{ borderStyle: 'dashed', my: 1, borderColor: '#666' }} />
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', fontSize: { xs: '10px', sm: '12px', md: '14px', lg: '16px' }, mb: 0.5 }}>
-              <Typography>SUBTOTAL Bs.</Typography>
-              <Typography>Bs. {cartSubtotal.toFixed(2)}</Typography>
-            </Box>
-            <Divider sx={{ borderStyle: 'dashed', my: 1, borderColor: '#666' }} /> */}
             <Box
               sx={{
                 display: 'flex',
@@ -446,11 +439,11 @@ function CartDrawer({
               <Typography>Bs. {cartTotal.toFixed(2)}</Typography>
             </Box>
             <FormControl fullWidth sx={{ mb: 2 }}>
-              <InputLabel id="payment-method-label">Método de Pago</InputLabel>
+              <InputLabel id="payment-method-label">Método de Pago Principal</InputLabel>
               <Select
                 labelId="payment-method-label"
                 value={paymentMethod}
-                label="Método de Pago"
+                label="Método de Pago Principal"
                 onChange={(e) => setPaymentMethod(e.target.value)}
                 sx={{
                   fontSize: { xs: '0.8rem', sm: '0.9rem', md: '1rem' },
@@ -469,10 +462,69 @@ function CartDrawer({
                 ))}
               </Select>
             </FormControl>
+            <FormControl fullWidth sx={{ mb: 2 }}>
+              <InputLabel id="second-payment-method-label">Segunda Forma de Pago (Opcional)</InputLabel>
+              <Select
+                labelId="second-payment-method-label"
+                value={secondPaymentMethod}
+                label="Segunda Forma de Pago (Opcional)"
+                onChange={(e) => setSecondPaymentMethod(e.target.value)}
+                sx={{
+                  fontSize: { xs: '0.8rem', sm: '0.9rem', md: '1rem' },
+                  backgroundColor: '#f5f5f5',
+                  borderRadius: '8px',
+                  transition: 'background-color 0.3s',
+                  '&:hover': {
+                    backgroundColor: '#e3f2fd',
+                  },
+                }}
+              >
+                <MenuItem value="">
+                  <em>Ninguno</em>
+                </MenuItem>
+                {paymentOptions.map((method) => (
+                  <MenuItem key={method} value={method}>
+                    {method}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            {secondPaymentMethod && (
+              <TextField
+                label="Monto para Segunda Forma de Pago (Bs.)"
+                value={splitAmount}
+                onChange={(e) => {
+                  const value = parseFloat(e.target.value) || 0;
+                  if (value < 0) {
+                    setError('El monto no puede ser negativo');
+                  } else if (value > cartTotal) {
+                    setError('El monto no puede superar el total del carrito');
+                  } else if (value === 0) {
+                    setError('El monto debe ser mayor que 0');
+                  } else {
+                    setSplitAmount(value);
+                    setError(null);
+                  }
+                }}
+                variant="outlined"
+                fullWidth
+                type="number"
+                sx={{
+                  mb: 2,
+                  backgroundColor: '#f5f5f5',
+                  borderRadius: '8px',
+                  '& .MuiInputBase-input': { fontSize: { xs: '0.8rem', sm: '0.9rem', md: '1rem' } },
+                  transition: 'background-color 0.3s',
+                  '&:hover': {
+                    backgroundColor: '#e3f2fd',
+                  },
+                }}
+              />
+            )}
             <Button
               variant="contained"
               color="primary"
-              onClick={registerSale}
+              onClick={() => registerSale(cartTotal, splitAmount, secondPaymentMethod)}
               startIcon={<ReceiptIcon />}
               sx={{
                 width: '100%',
@@ -487,7 +539,7 @@ function CartDrawer({
                   transform: 'scale(1.02)',
                 },
               }}
-              disabled={cart.length === 0 || !paymentMethod}
+              disabled={cart.length === 0 || !paymentMethod || (secondPaymentMethod && (!splitAmount || splitAmount <= 0))}
             >
               Registrar Venta y Generar Ticket
             </Button>

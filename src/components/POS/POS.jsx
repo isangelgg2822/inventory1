@@ -15,7 +15,6 @@ import TicketModal from './TicketModal';
 import CancelDialog from './CancelDialog';
 import SalesTable from './SalesTable';
 
-// IVA Rate constant
 const IVA_RATE = 0.16;
 
 function PointOfSale() {
@@ -36,7 +35,6 @@ function PointOfSale() {
   const { fetchDailySales, fetchTotalProducts } = useDashboard();
   const { open, isMobile } = useDrawer();
 
-  // Payment options
   const paymentOptions = [
     'Efectivo Bs',
     'Divisa',
@@ -46,7 +44,6 @@ function PointOfSale() {
     'Avance de Efectivo',
   ];
 
-  // Fetch user role
   useEffect(() => {
     const fetchUserRole = async () => {
       const { data: { user }, error } = await supabase.auth.getUser();
@@ -60,7 +57,6 @@ function PointOfSale() {
     fetchUserRole();
   }, [navigate]);
 
-  // Fetch cashier name
   useEffect(() => {
     const fetchCashierName = async () => {
       const { data: { user }, error } = await supabase.auth.getUser();
@@ -82,18 +78,16 @@ function PointOfSale() {
     fetchCashierName();
   }, []);
 
-  // Fetch products
   const fetchProducts = useCallback(async () => {
     const { data, error } = await supabase.from('products').select('*');
     if (error) {
-      setError(`Error al recuperar los productos: ${error.message} (Código: ${error.code})`);
+      setError(`Error al récupérer los productos: ${error.message} (Código: ${error.code})`);
       setProducts([]);
       return;
     }
     setProducts(data || []);
   }, []);
 
-  // Fetch exchange rate
   const fetchExchangeRate = useCallback(async () => {
     const { data, error } = await supabase
       .from('settings')
@@ -116,7 +110,6 @@ function PointOfSale() {
     }
   }, []);
 
-  // Handle sales data grouping
   const handleSalesData = useCallback((sales, saleGroupsWithUsers) => {
     if (!sales || sales.length === 0) {
       setSalesGroups([]);
@@ -147,7 +140,6 @@ function PointOfSale() {
     setSalesGroups(Object.values(groupedSales));
   }, []);
 
-  // Fetch sales groups
   const fetchSalesGroups = useCallback(async () => {
     const { data: sales, error: salesError } = await supabase
       .from('sales')
@@ -219,17 +211,15 @@ function PointOfSale() {
     handleSalesData(sales, saleGroupsWithUsers);
   }, [handleSalesData]);
 
-  // Initial data fetching
   useEffect(() => {
     fetchProducts();
     fetchExchangeRate();
     fetchSalesGroups();
   }, [fetchProducts, fetchExchangeRate, fetchSalesGroups]);
 
-  // Register sale
-  const registerSale = useCallback(async () => {
+  const registerSale = useCallback(async (cartTotal, splitAmount, secondPaymentMethod) => {
     if (!paymentMethod) {
-      setError('Por favor, selecciona un método de pago');
+      setError('Por favor, selecciona un método de pago principal');
       return;
     }
     const { data: { user }, error: userError } = await supabase.auth.getUser();
@@ -241,6 +231,7 @@ function PointOfSale() {
     const userId = user.id;
     const saleGroupId = uuidv4();
     try {
+      // Registrar los items de la venta solo en el primer sale_group
       for (const item of cart) {
         const { data: product, error: productError } = await supabase
           .from('products')
@@ -283,12 +274,15 @@ function PointOfSale() {
       const taxBs = cart.reduce((sum, item) => sum + item.ivaTotalBs, 0);
       const totalBs = cart.reduce((sum, item) => sum + item.totalBs, 0);
       const saleNumber = Math.floor(Math.random() * 10000);
+      const primaryAmount = splitAmount && parseFloat(splitAmount) > 0 ? cartTotal - parseFloat(splitAmount) : totalBs;
+
+      // Primer sale_group (pago principal)
       const saleGroupData = {
         sale_group_id: saleGroupId,
         user_id: userId,
         subtotal: subtotalBs,
         tax: taxBs,
-        total: totalBs,
+        total: primaryAmount,
         sale_number: saleNumber,
         payment_method: paymentMethod,
       };
@@ -297,6 +291,28 @@ function PointOfSale() {
         setError(`Error al registrar los detalles de la venta: ${insertGroupError.message} (Código: ${insertGroupError.code})`);
         return;
       }
+
+      // Segundo sale_group (si hay segunda forma de pago)
+      let secondSaleGroupId = null;
+      if (secondPaymentMethod && splitAmount && parseFloat(splitAmount) > 0 && parseFloat(splitAmount) <= cartTotal) {
+        secondSaleGroupId = `${saleGroupId}-split`;
+        const secondSaleGroupData = {
+          sale_group_id: secondSaleGroupId,
+          user_id: userId,
+          subtotal: 0, // No se desglosa, solo el total
+          tax: 0,
+          total: parseFloat(splitAmount),
+          sale_number: saleNumber,
+          payment_method: secondPaymentMethod,
+        };
+        const { error: secondInsertGroupError } = await supabase.from('sale_groups').insert([secondSaleGroupData]);
+        if (secondInsertGroupError) {
+          setError(`Error al registrar la segunda forma de pago: ${secondInsertGroupError.message} (Código: ${secondInsertGroupError.code})`);
+          return;
+        }
+      }
+
+      // Configurar saleDetails para el ticket
       setSaleDetails({
         items: cart,
         subtotal: subtotalBs,
@@ -304,11 +320,15 @@ function PointOfSale() {
         total: totalBs,
         date: new Date().toLocaleString(),
         saleNumber,
-        paymentMethod,
+        paymentMethods: [
+          { method: paymentMethod, amount: primaryAmount },
+          ...(secondPaymentMethod && splitAmount ? [{ method: secondPaymentMethod, amount: parseFloat(splitAmount) }] : []),
+        ],
       });
       setOpenTicket(true);
       setCart([]);
       setPaymentMethod('');
+      setError(null);
       fetchProducts();
       fetchSalesGroups();
       fetchDailySales();
@@ -316,13 +336,11 @@ function PointOfSale() {
       if (isMobile) {
         setCartDrawerOpen(false);
       }
-      setError(null);
     } catch (error) {
       setError(`Error inesperado al registrar la venta: ${error.message || 'Error desconocido'}`);
     }
   }, [cart, paymentMethod, navigate, fetchProducts, fetchSalesGroups, fetchDailySales, fetchTotalProducts, isMobile]);
 
-  // Reprint ticket
   const reprintTicket = useCallback(async (saleGroup) => {
     const { data: saleGroupDetails, error } = await supabase
       .from('sale_groups')
@@ -339,19 +357,33 @@ function PointOfSale() {
       totalBs: item.total,
     }));
     const subtotal = saleGroupDetails.subtotal ?? saleGroup.items.reduce((sum, item) => sum + (item.total || 0), 0);
+    let paymentMethods = [{ method: saleGroupDetails.payment_method, amount: saleGroupDetails.total }];
+    if (saleGroup.sale_group_id.endsWith('-split')) {
+      const primaryGroupId = saleGroup.sale_group_id.replace('-split', '');
+      const { data: primaryGroup, error: primaryError } = await supabase
+        .from('sale_groups')
+        .select('payment_method, total')
+        .eq('sale_group_id', primaryGroupId)
+        .single();
+      if (!primaryError && primaryGroup) {
+        paymentMethods = [
+          { method: primaryGroup.payment_method, amount: primaryGroup.total },
+          { method: saleGroupDetails.payment_method, amount: saleGroupDetails.total },
+        ];
+      }
+    }
     setSaleDetails({
       items: transformedItems,
       subtotal: subtotal,
       tax: saleGroupDetails.tax ?? 0,
-      total: saleGroupDetails.total ?? 0,
+      total: saleGroupDetails.total + (paymentMethods.length > 1 ? paymentMethods[0].amount : 0),
       date: new Date(saleGroup.date).toLocaleString(),
       saleNumber: saleGroupDetails.sale_number,
-      paymentMethod: saleGroupDetails.payment_method,
+      paymentMethods,
     });
     setOpenTicket(true);
   }, [products]);
 
-  // Cancel sale group
   const cancelSaleGroup = useCallback(async () => {
     if (!selectedSaleGroup || userRole !== 'admin') {
       setError('Solo los administradores pueden anular ventas.');
@@ -381,6 +413,14 @@ function PointOfSale() {
         }
       }
     }
+    // Anular el segundo sale_group si existe
+    if (selectedSaleGroup.sale_group_id && !selectedSaleGroup.sale_group_id.endsWith('-split')) {
+      const secondSaleGroupId = `${selectedSaleGroup.sale_group_id}-split`;
+      await supabase
+        .from('sales')
+        .update({ is_canceled: true })
+        .eq('sale_group_id', secondSaleGroupId);
+    }
     setOpenCancelDialog(false);
     setSelectedSaleGroup(null);
     fetchSalesGroups();
@@ -390,7 +430,6 @@ function PointOfSale() {
     setError(null);
   }, [selectedSaleGroup, products, userRole, fetchSalesGroups, fetchProducts, fetchDailySales, fetchTotalProducts]);
 
-  // Error handling UI
   if (error && !error.includes('tasa de cambio')) {
     return (
       <Container sx={{ mt: { xs: 2, sm: 3, md: 4 }, mb: { xs: 2, sm: 4 } }}>
