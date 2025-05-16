@@ -74,8 +74,7 @@ function TicketModal({ openTicket, setOpenTicket, saleDetails, cashierName, isMo
           <h1 style="font-size: ${isMobile ? '10px' : '12px'}; font-weight: bold; margin: 0;">Dxtodito C.A</h1>
           <p style="margin: 2px 0;">Nota de Entrega #${saleDetails?.saleNumber ?? 'N/A'}</p>
           <p style="margin: 2px 0;">Fecha: ${saleDetails?.date ?? 'N/A'}</p>
-          <p style="margin: 2px 0 5px;">Método de Pago: ${saleDetails?.paymentMethods?.[0]?.method ?? 'N/A'} ${saleDetails?.paymentMethods?.[0]?.amount ? `Bs. ${saleDetails.paymentMethods[0].amount.toFixed(2)}` : ''}</p>
-          ${saleDetails?.paymentMethods?.[1] ? `<p style="margin: 2px 0 5px;">Segundo Método de Pago: ${saleDetails.paymentMethods[1].method} ${saleDetails.paymentMethods[1].amount ? `Bs. ${saleDetails.paymentMethods[1].amount.toFixed(2)}` : ''}</p>` : ''}
+          <p style="margin: 2px 0 5px;">Método de Pago: ${saleDetails?.paymentMethod ?? 'N/A'}</p>
           <div class="divider"></div>
           <p style="text-align: left; margin: 5px 0;">Cajero: ${cashierName}</p>
           <div class="divider"></div>
@@ -90,7 +89,15 @@ function TicketModal({ openTicket, setOpenTicket, saleDetails, cashierName, isMo
               )
               .join('') ?? ''}
           </div>
-          
+          <div class="divider"></div>
+          // <div style="display: flex; justify-content: space-between; margin: 2px 0;">
+          //   <span>SUBTOTAL Bs.</span>
+          //   <span>Bs. ${(saleDetails?.subtotal ?? 0).toFixed(2)}</span>
+          // </div>
+          <div style="display: flex; justify-content: space-between; margin: 2px 0;">
+            <span>IVA (16%)</span>
+            <span>Bs. ${(saleDetails?.tax ?? 0).toFixed(2)}</span>
+          </div>
           <div class="divider"></div>
           <div style="display: flex; justify-content: space-between;" class="total">
             <span>TOTAL Bs.</span>
@@ -149,13 +156,8 @@ function TicketModal({ openTicket, setOpenTicket, saleDetails, cashierName, isMo
             Fecha: {saleDetails?.date ?? 'N/A'}
           </Typography>
           <Typography sx={{ fontSize: { xs: '8px', sm: '10px', md: '12px' }, mb: 1 }}>
-            Método de Pago: {saleDetails?.paymentMethods?.[0]?.method ?? 'N/A'}{saleDetails?.paymentMethods?.[0]?.amount ? ` Bs. ${saleDetails.paymentMethods[0].amount.toFixed(2)}` : ''}
+            Método de Pago: {saleDetails?.paymentMethod ?? 'N/A'}
           </Typography>
-          {saleDetails?.paymentMethods?.[1] && (
-            <Typography sx={{ fontSize: { xs: '8px', sm: '10px', md: '12px' }, mb: 1 }}>
-              Segundo Método de Pago: {saleDetails.paymentMethods[1].method}{saleDetails.paymentMethods[1].amount ? ` Bs. ${saleDetails.paymentMethods[1].amount.toFixed(2)}` : ''}
-            </Typography>
-          )}
           <Divider sx={{ borderStyle: 'dashed', my: 0.5, borderColor: '#666' }} />
           <Typography sx={{ fontSize: { xs: '8px', sm: '10px', md: '12px' }, mb: 1, textAlign: 'left' }}>
             Cajero: {cashierName}
