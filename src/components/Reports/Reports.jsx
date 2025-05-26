@@ -122,15 +122,19 @@ function Reports() {
       const end = endOfDay(endLocal).toISOString();
       console.log('Query Range:', `${start} to ${end}`);
 
+      // Seleccionamos los campos adicionales para los métodos de pago
       let query = supabase
         .from('sale_groups')
-        .select('sale_group_id, total, payment_method, created_at')
+        .select('sale_group_id, total, payment_method, primary_payment_method, paid_amount, secondary_payment_method, second_paid_amount, created_at')
         .gte('created_at', start)
         .lte('created_at', end)
         .order('created_at', { ascending: true });
 
+      // Filtrar por método de pago (considerando principal y secundario)
       if (paymentMethodFilter) {
-        query = query.eq('payment_method', paymentMethodFilter);
+        query = query.or(
+          `primary_payment_method.eq.${paymentMethodFilter},secondary_payment_method.eq.${paymentMethodFilter}`
+        );
       }
 
       const { data: saleGroups, error: groupsError } = await query;
@@ -212,24 +216,72 @@ function Reports() {
       setSalesData(formattedSalesData);
       setTotalSales(total);
 
+      // Procesar resumen por método de pago para ventas activas
       const paymentSummary = activeSaleGroups.reduce((acc, group) => {
-        const method = group.payment_method || 'Desconocido';
-        if (!acc[method]) {
-          acc[method] = { total: 0, transactions: 0 };
+        // Manejar compatibilidad con ventas antiguas
+        const isLegacySale = !group.primary_payment_method && !group.paid_amount;
+        
+        // Método principal
+        const primaryMethod = isLegacySale
+          ? group.payment_method || 'Desconocido'
+          : group.primary_payment_method || group.payment_method || 'Desconocido';
+        const primaryAmount = isLegacySale
+          ? group.total || 0
+          : parseFloat(group.paid_amount) || 0;
+
+        if (!acc[primaryMethod]) {
+          acc[primaryMethod] = { total: 0, transactions: 0 };
         }
-        acc[method].total += group.total || 0;
-        acc[method].transactions += 1;
+        acc[primaryMethod].total += primaryAmount;
+        acc[primaryMethod].transactions += 1;
+
+        // Método secundario (si existe)
+        if (group.secondary_payment_method) {
+          const secondaryMethod = group.secondary_payment_method || 'Desconocido';
+          const secondaryAmount = parseFloat(group.second_paid_amount) || 0;
+
+          if (!acc[secondaryMethod]) {
+            acc[secondaryMethod] = { total: 0, transactions: 0 };
+          }
+          acc[secondaryMethod].total += secondaryAmount;
+          acc[secondaryMethod].transactions += 1;
+        }
+
         return acc;
       }, {});
       setPaymentSummary(paymentSummary);
 
+      // Procesar resumen de ventas anuladas
       const canceledSummary = canceledSaleGroupsList.reduce((acc, group) => {
-        const method = group.payment_method || 'Desconocido';
-        if (!acc[method]) {
-          acc[method] = { total: 0, transactions: 0 };
+        // Manejar compatibilidad con ventas antiguas
+        const isLegacySale = !group.primary_payment_method && !group.paid_amount;
+
+        // Método principal
+        const primaryMethod = isLegacySale
+          ? group.payment_method || 'Desconocido'
+          : group.primary_payment_method || group.payment_method || 'Desconocido';
+        const primaryAmount = isLegacySale
+          ? group.total || 0
+          : parseFloat(group.paid_amount) || 0;
+
+        if (!acc[primaryMethod]) {
+          acc[primaryMethod] = { total: 0, transactions: 0 };
         }
-        acc[method].total += group.total || 0;
-        acc[method].transactions += 1;
+        acc[primaryMethod].total += primaryAmount;
+        acc[primaryMethod].transactions += 1;
+
+        // Método secundario (si existe)
+        if (group.secondary_payment_method) {
+          const secondaryMethod = group.secondary_payment_method || 'Desconocido';
+          const secondaryAmount = parseFloat(group.second_paid_amount) || 0;
+
+          if (!acc[secondaryMethod]) {
+            acc[secondaryMethod] = { total: 0, transactions: 0 };
+          }
+          acc[secondaryMethod].total += secondaryAmount;
+          acc[secondaryMethod].transactions += 1;
+        }
+
         return acc;
       }, {});
       setCanceledSalesSummary(canceledSummary);

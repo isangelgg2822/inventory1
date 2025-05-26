@@ -29,6 +29,9 @@ function PointOfSale() {
   const [selectedSaleGroup, setSelectedSaleGroup] = useState(null);
   const [cartDrawerOpen, setCartDrawerOpen] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('');
+  const [secondPaymentMethod, setSecondPaymentMethod] = useState('');
+  const [primaryPaidAmount, setPrimaryPaidAmount] = useState(0); // Nuevo estado
+  const [secondPaidAmount, setSecondPaidAmount] = useState(0);
   const [error, setError] = useState(null);
   const [cashierName, setCashierName] = useState('Usuario');
   const [userRole, setUserRole] = useState(null);
@@ -229,9 +232,36 @@ function PointOfSale() {
   // Register sale
   const registerSale = useCallback(async () => {
     if (!paymentMethod) {
-      setError('Por favor, selecciona un método de pago');
+      setError('Por favor, selecciona un método de pago principal');
       return;
     }
+    const totalBs = cart.reduce((sum, item) => sum + item.totalBs, 0);
+    const secondPaidAmountValue = parseFloat(secondPaidAmount) || 0;
+    const primaryAmountValue = parseFloat(primaryPaidAmount) || 0;
+
+    // Validaciones
+    if (secondPaymentMethod && (!secondPaidAmount || secondPaidAmountValue <= 0)) {
+      setError('Por favor, ingresa un monto válido para el método de pago secundario');
+      return;
+    }
+    if (secondPaymentMethod && (!primaryPaidAmount || primaryAmountValue <= 0)) {
+      setError('Por favor, ingresa un monto válido para el método de pago principal');
+      return;
+    }
+    if (secondPaymentMethod) {
+      const sumOfPayments = primaryAmountValue + secondPaidAmountValue;
+      if (Math.abs(sumOfPayments - totalBs) > 0.01) { // Tolerancia para errores de redondeo
+        setError('La suma de los montos de los métodos de pago debe ser igual al total de la venta');
+        return;
+      }
+    } else {
+      // Si solo hay método principal, el monto debe ser igual al total
+      if (primaryAmountValue > 0 && Math.abs(primaryAmountValue - totalBs) > 0.01) {
+        setError('El monto del método de pago principal debe ser igual al total de la venta');
+        return;
+      }
+    }
+
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     if (userError || !user) {
       setError('No se pudo autenticar el usuario. Por favor, inicia sesión nuevamente.');
@@ -240,6 +270,7 @@ function PointOfSale() {
     }
     const userId = user.id;
     const saleGroupId = uuidv4();
+
     try {
       for (const item of cart) {
         const { data: product, error: productError } = await supabase
@@ -248,13 +279,11 @@ function PointOfSale() {
           .eq('id', item.id)
           .single();
         if (productError || !product) {
-          setError(`Error al obtener el producto con ID ${item.id}: ${productError?.message || 'Producto no encontrado'}`);
-          return;
+          throw new Error(`Error al obtener el producto con ID ${item.id}: ${productError?.message || 'Producto no encontrado'}`);
         }
         const newQuantity = product.quantity - item.quantity;
         if (newQuantity < 0) {
-          setError(`No hay suficiente stock para el producto ${item.name}`);
-          return;
+          throw new Error(`No hay suficiente stock para el producto ${item.name}`);
         }
         const { error: insertError } = await supabase.from('sales').insert([
           {
@@ -266,23 +295,20 @@ function PointOfSale() {
             is_canceled: false,
           },
         ]);
-        if (insertError) {
-          setError(`Error al registrar la venta: ${insertError.message} (Código: ${insertError.code})`);
-          return;
-        }
+        if (insertError) throw insertError;
+
         const { error: updateError } = await supabase
           .from('products')
           .update({ quantity: newQuantity })
           .eq('id', item.id);
-        if (updateError) {
-          setError(`Error al actualizar el inventario: ${updateError.message} (Código: ${updateError.code})`);
-          return;
-        }
+        if (updateError) throw updateError;
       }
+
       const subtotalBs = cart.reduce((sum, item) => sum + item.subtotalBs, 0);
       const taxBs = cart.reduce((sum, item) => sum + item.ivaTotalBs, 0);
       const totalBs = cart.reduce((sum, item) => sum + item.totalBs, 0);
       const saleNumber = Math.floor(Math.random() * 10000);
+
       const saleGroupData = {
         sale_group_id: saleGroupId,
         user_id: userId,
@@ -290,13 +316,17 @@ function PointOfSale() {
         tax: taxBs,
         total: totalBs,
         sale_number: saleNumber,
-        payment_method: paymentMethod,
+        payment_method: paymentMethod, // Mantener como referencia general
+        primary_payment_method: paymentMethod, // Guardar método principal
+        paid_amount: primaryAmountValue || totalBs, // Usar el monto ingresado o el total si no se especificó
+        secondary_payment_method: secondPaymentMethod || null, // Método secundario
+        second_paid_amount: secondPaidAmountValue || null, // Monto secundario
       };
       const { error: insertGroupError } = await supabase.from('sale_groups').insert([saleGroupData]);
       if (insertGroupError) {
-        setError(`Error al registrar los detalles de la venta: ${insertGroupError.message} (Código: ${insertGroupError.code})`);
-        return;
+        throw insertGroupError;
       }
+
       setSaleDetails({
         items: cart,
         subtotal: subtotalBs,
@@ -305,10 +335,17 @@ function PointOfSale() {
         date: new Date().toLocaleString(),
         saleNumber,
         paymentMethod,
+        primaryPaymentMethod: paymentMethod,
+        paidAmount: primaryAmountValue || totalBs,
+        secondPaymentMethod,
+        secondPaidAmount: secondPaidAmountValue,
       });
       setOpenTicket(true);
       setCart([]);
       setPaymentMethod('');
+      setSecondPaymentMethod('');
+      setPrimaryPaidAmount(0); // Resetear
+      setSecondPaidAmount(0);
       fetchProducts();
       fetchSalesGroups();
       fetchDailySales();
@@ -318,15 +355,16 @@ function PointOfSale() {
       }
       setError(null);
     } catch (error) {
-      setError(`Error inesperado al registrar la venta: ${error.message || 'Error desconocido'}`);
+      setError(`Error al registrar la venta: ${error.message} (Código: ${error.code || 'Desconocido'})`);
+      console.error('Registration error:', error);
     }
-  }, [cart, paymentMethod, navigate, fetchProducts, fetchSalesGroups, fetchDailySales, fetchTotalProducts, isMobile]);
+  }, [cart, paymentMethod, secondPaymentMethod, primaryPaidAmount, secondPaidAmount, navigate, fetchProducts, fetchSalesGroups, fetchDailySales, fetchTotalProducts, isMobile]);
 
   // Reprint ticket
   const reprintTicket = useCallback(async (saleGroup) => {
     const { data: saleGroupDetails, error } = await supabase
       .from('sale_groups')
-      .select('*')
+      .select('*, payment_method, primary_payment_method, paid_amount, secondary_payment_method, second_paid_amount')
       .eq('sale_group_id', saleGroup.sale_group_id)
       .single();
     if (error || !saleGroupDetails) {
@@ -339,6 +377,16 @@ function PointOfSale() {
       totalBs: item.total,
     }));
     const subtotal = saleGroupDetails.subtotal ?? saleGroup.items.reduce((sum, item) => sum + (item.total || 0), 0);
+
+    // Manejar compatibilidad con ventas antiguas
+    const isLegacySale = !saleGroupDetails.primary_payment_method && !saleGroupDetails.paid_amount;
+    const primaryPaymentMethod = isLegacySale
+      ? saleGroupDetails.payment_method
+      : saleGroupDetails.primary_payment_method || saleGroupDetails.payment_method;
+    const paidAmount = isLegacySale
+      ? saleGroupDetails.total
+      : saleGroupDetails.paid_amount ?? saleGroupDetails.total ?? 0;
+
     setSaleDetails({
       items: transformedItems,
       subtotal: subtotal,
@@ -347,9 +395,13 @@ function PointOfSale() {
       date: new Date(saleGroup.date).toLocaleString(),
       saleNumber: saleGroupDetails.sale_number,
       paymentMethod: saleGroupDetails.payment_method,
+      primaryPaymentMethod: primaryPaymentMethod,
+      paidAmount: paidAmount,
+      secondPaymentMethod: saleGroupDetails.secondary_payment_method,
+      secondPaidAmount: saleGroupDetails.second_paid_amount ?? 0,
     });
     setOpenTicket(true);
-  }, [products]);
+  }, [products, setError]);
 
   // Cancel sale group
   const cancelSaleGroup = useCallback(async () => {
@@ -512,6 +564,12 @@ function PointOfSale() {
         setError={setError}
         paymentMethod={paymentMethod}
         setPaymentMethod={setPaymentMethod}
+        secondPaymentMethod={secondPaymentMethod}
+        setSecondPaymentMethod={setSecondPaymentMethod}
+        primaryPaidAmount={primaryPaidAmount} // Pasar el nuevo estado
+        setPrimaryPaidAmount={setPrimaryPaidAmount} // Pasar el setter
+        secondPaidAmount={secondPaidAmount}
+        setSecondPaidAmount={setSecondPaidAmount}
         paymentOptions={paymentOptions}
         registerSale={registerSale}
         IVA_RATE={IVA_RATE}

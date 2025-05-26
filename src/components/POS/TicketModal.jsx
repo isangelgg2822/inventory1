@@ -1,12 +1,20 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useRef, useEffect } from 'react';
 import Modal from '@mui/material/Modal';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Divider from '@mui/material/Divider';
 import Button from '@mui/material/Button';
+import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 
 function TicketModal({ openTicket, setOpenTicket, saleDetails, cashierName, isMobile, setError }) {
   const componentRef = useRef();
+
+  // Log para depurar saleDetails
+  useEffect(() => {
+    if (openTicket) {
+      console.log('saleDetails en TicketModal:', saleDetails);
+    }
+  }, [openTicket, saleDetails]);
 
   const handlePrint = useCallback(() => {
     const printWindow = window.open('', '_blank');
@@ -16,102 +24,70 @@ function TicketModal({ openTicket, setOpenTicket, saleDetails, cashierName, isMo
     }
     const content = `
       <html>
-        <head>
-          <title>Ticket de Venta</title>
-          <style>
-            body {
-              font-family: monospace;
-              font-size: ${isMobile ? '8px' : '10px'};
-              line-height: 1.2;
-              width: 80mm;
-              margin: 0 auto;
-              text-align: center;
-              padding: ${isMobile ? '2mm' : '5mm'};
-              box-sizing: border-box;
-            }
-            .divider {
-              border-top: 1px dashed #000;
-              margin: 5px 0;
-            }
-            .item {
-              display: flex;
-              justify-content: space-between;
-              text-align: left;
-              margin-bottom: 2px;
-            }
-            .total {
-              font-size: ${isMobile ? '10px' : '12px'};
-              font-weight: bold;
-            }
-            @media print and (max-width: 58mm) {
-              body {
-                font-size: 8px;
-                width: 58mm;
-                padding: 2mm;
-              }
-              .total {
-                font-size: 10px;
-              }
-            }
-            @media print and (min-width: 80mm) {
-              body {
-                font-size: 12px;
-                width: 80mm;
-                padding: 10mm;
-              }
-              .total {
-                font-size: 14px;
-              }
-            }
-            @media print {
-              body {
-                page-break-inside: avoid;
-              }
-            }
-          </style>
-        </head>
-        <body onload="window.print(); window.close()">
-          <h1 style="font-size: ${isMobile ? '10px' : '12px'}; font-weight: bold; margin: 0;">Dxtodito C.A</h1>
-          <p style="margin: 2px 0;">Nota de Entrega #${saleDetails?.saleNumber ?? 'N/A'}</p>
-          <p style="margin: 2px 0;">Fecha: ${saleDetails?.date ?? 'N/A'}</p>
-          <p style="margin: 2px 0 5px;">Método de Pago: ${saleDetails?.paymentMethod ?? 'N/A'}</p>
-          <div class="divider"></div>
-          <p style="text-align: left; margin: 5px 0;">Cajero: ${cashierName}</p>
-          <div class="divider"></div>
-          <div style="text-align: left; margin-bottom: 5px;">
+        <body style="font-family: Arial, sans-serif; font-size: 12px; padding: 20px; background-color: #f5f5f5;">
+          <div style="text-align: center; max-width: 300px; margin: 0 auto; background-color: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+            <p style="margin: 2px 0; font-size: 16px; font-weight: bold; color: #2e7d32;">🛒 Dxtodito C.A</p>
+            <p style="margin: 2px 0; font-size: 12px; color: #555;">Nota de Entrega #${saleDetails?.saleNumber ?? 'N/A'}</p>
+            <p style="margin: 2px 0; font-size: 12px; color: #555;">Fecha: ${saleDetails?.date ?? 'N/A'}</p>
+            <p style="margin: 4px 0; font-size: 12px; color: #555;">Cajero: ${cashierName ?? 'Desconocido'}</p>
+            <hr style="border: 1px dashed #999; margin: 10px 0;" />
             ${saleDetails?.items
               ?.map(
                 (item) =>
-                  `<div class="item">
-                    <span style="flex: 1;">${item.name} x ${item.quantity}</span>
-                    <span>Bs. ${(item.totalBs ?? 0).toFixed(2)}</span>
-                  </div>`
+                  `
+                    <div style="display: flex; justify-content: space-between; margin: 4px 0;">
+                      <span style="font-size: 12px; text-align: left;">${item?.name ?? 'Producto Desconocido'} x ${item?.quantity ?? 0}</span>
+                      <span style="font-size: 12px; text-align: right;">Bs. ${(item?.totalBs ?? 0).toFixed(2)}</span>
+                    </div>
+                  `
               )
               .join('') ?? ''}
+            <hr style="border: 1px dashed #999; margin: 10px 0;" />
+            <div style="display: flex; justify-content: space-between; margin: 4px 0;">
+              <p style="font-size: 14px; font-weight: bold; text-align: left;">TOTAL Bs.</p>
+              <p style="font-size: 14px; font-weight: bold; text-align: right;">Bs. ${(saleDetails?.total ?? 0).toFixed(2)}</p>
+            </div>
+            <hr style="border: 1px dashed #999; margin: 10px 0;" />
+            <p style="margin: 4px 0; font-size: 12px; text-align: left;">Método de Pago: ${saleDetails?.primaryPaymentMethod ?? saleDetails?.paymentMethod ?? 'N/A'} - Bs. ${(saleDetails?.paidAmount ?? saleDetails?.total ?? 0).toFixed(2)}</p>
+            ${saleDetails?.secondPaymentMethod ? `<p style="margin: 4px 0; font-size: 12px; text-align: left;">Método de Pago: ${saleDetails?.secondPaymentMethod ?? 'N/A'} - Bs. ${(saleDetails?.secondPaidAmount ?? 0).toFixed(2)}</p>` : ''}
+            <hr style="border: 1px dashed #999; margin: 10px 0;" />
+            <p style="margin: 4px 0; font-size: 12px; color: #2e7d32;">Gracias por su compra</p>
           </div>
-          <div class="divider"></div>
-          // <div style="display: flex; justify-content: space-between; margin: 2px 0;">
-          //   <span>SUBTOTAL Bs.</span>
-          //   <span>Bs. ${(saleDetails?.subtotal ?? 0).toFixed(2)}</span>
-          // </div>
-          <div style="display: flex; justify-content: space-between; margin: 2px 0;">
-            <span>IVA (16%)</span>
-            <span>Bs. ${(saleDetails?.tax ?? 0).toFixed(2)}</span>
-          </div>
-          <div class="divider"></div>
-          <div style="display: flex; justify-content: space-between;" class="total">
-            <span>TOTAL Bs.</span>
-            <span>Bs. ${(saleDetails?.total ?? 0).toFixed(2)}</span>
-          </div>
-          <div class="divider"></div>
-          <p style="margin: 5px 0;">Gracias por su compra</p>
         </body>
       </html>
     `;
     printWindow.document.write(content);
     printWindow.document.close();
     printWindow.focus();
-  }, [saleDetails, isMobile, cashierName, setError]);
+    printWindow.print();
+    printWindow.close();
+  }, [saleDetails, cashierName, setError]);
+
+  if (!saleDetails) {
+    return (
+      <Modal open={openTicket} onClose={() => setOpenTicket(false)}>
+        <Box
+          sx={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            width: { xs: '90%', sm: '350px', md: '400px' },
+            bgcolor: 'background.paper',
+            boxShadow: 24,
+            p: { xs: 2, sm: 3, md: 4 },
+            borderRadius: '12px',
+            maxHeight: '80vh',
+            overflowY: 'auto',
+          }}
+        >
+          <Typography sx={{ textAlign: 'center', color: '#555' }}>
+            Cargando detalles de la venta...
+          </Typography>
+        </Box>
+      </Modal>
+    );
+  }
 
   return (
     <Modal open={openTicket} onClose={() => setOpenTicket(false)}>
@@ -121,100 +97,97 @@ function TicketModal({ openTicket, setOpenTicket, saleDetails, cashierName, isMo
           top: '50%',
           left: '50%',
           transform: 'translate(-50%, -50%)',
-          bgcolor: 'background.paper',
-          boxShadow: 24,
-          p: { xs: 2, sm: 3 },
+          width: { xs: '90%', sm: '350px', md: '400px' },
+          bgcolor: '#f5f5f5',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
           borderRadius: '12px',
-          maxWidth: { xs: '90vw', sm: '100mm' },
-          width: '100%',
-          maxHeight: '90vh',
+          p: { xs: 2, sm: 3, md: 4 },
+          maxHeight: '80vh',
           overflowY: 'auto',
         }}
       >
         <Box
-          ref={componentRef}
           sx={{
-            p: 1,
-            fontFamily: 'monospace',
-            fontSize: { xs: '8px', sm: '10px', md: '12px' },
-            lineHeight: 1.2,
-            width: '100mm',
-            textAlign: 'center',
-            mx: 'auto',
+            backgroundColor: 'white',
+            borderRadius: '8px',
+            p: 2,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
           }}
         >
-          <Typography
-            variant="h6"
-            sx={{ fontSize: { xs: '10px', sm: '12px', md: '14px' }, fontWeight: 'bold', color: '#1976d2' }}
-          >
-            Dxtodito C.A
+          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', mb: 1 }}>
+            <ShoppingCartIcon sx={{ color: '#2e7d32', mr: 1 }} />
+            <Typography
+              sx={{
+                fontSize: '1.2rem',
+                fontWeight: 'bold',
+                color: '#2e7d32',
+              }}
+            >
+              Dxtodito C.A
+            </Typography>
+          </Box>
+          <Typography sx={{ fontSize: '0.9rem', color: '#555', textAlign: 'center', mb: 0.5 }}>
+            Nota de Entrega #{saleDetails.saleNumber ?? 'N/A'}
           </Typography>
-          <Typography sx={{ fontSize: { xs: '8px', sm: '10px', md: '12px' } }}>
-            Nota de Entrega #{saleDetails?.saleNumber ?? 'N/A'}
+          <Typography sx={{ fontSize: '0.9rem', color: '#555', textAlign: 'center', mb: 0.5 }}>
+            Fecha: {saleDetails.date ?? 'N/A'}
           </Typography>
-          <Typography sx={{ fontSize: { xs: '8px', sm: '10px', md: '12px' } }}>
-            Fecha: {saleDetails?.date ?? 'N/A'}
+          <Typography sx={{ fontSize: '0.9rem', color: '#555', textAlign: 'center', mb: 0.5 }}>
+            Cajero: {cashierName ?? 'Desconocido'}
           </Typography>
-          <Typography sx={{ fontSize: { xs: '8px', sm: '10px', md: '12px' }, mb: 1 }}>
-            Método de Pago: {saleDetails?.paymentMethod ?? 'N/A'}
-          </Typography>
-          <Divider sx={{ borderStyle: 'dashed', my: 0.5, borderColor: '#666' }} />
-          <Typography sx={{ fontSize: { xs: '8px', sm: '10px', md: '12px' }, mb: 1, textAlign: 'left' }}>
-            Cajero: {cashierName}
-          </Typography>
-          <Divider sx={{ borderStyle: 'dashed', my: 0.5, borderColor: '#666' }} />
-          <Box sx={{ mb: 1, textAlign: 'left' }}>
-            {saleDetails?.items?.map((item, index) => (
-              <Box
-                key={`${item.id}-${index}`}
-                sx={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  fontSize: { xs: '8px', sm: '10px', md: '12px' },
-                }}
-              >
-                <Typography sx={{ flex: 1 }}>
-                  {item.name} x {item.quantity}
+          <Divider sx={{ my: 1.5, borderStyle: 'dashed', borderColor: '#999' }} />
+          {saleDetails.items?.length > 0 ? (
+            saleDetails.items.map((item, index) => (
+              <Box key={index} sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                <Typography sx={{ fontSize: '0.9rem', textAlign: 'left' }}>
+                  {item?.name ?? 'Producto Desconocido'} x {item?.quantity ?? 0}
                 </Typography>
-                <Typography>Bs. {(item.totalBs ?? 0).toFixed(2)}</Typography>
+                <Typography sx={{ fontSize: '0.9rem', textAlign: 'right' }}>
+                  Bs. {(item?.totalBs ?? 0).toFixed(2)}
+                </Typography>
               </Box>
-            )) ?? null}
+            ))
+          ) : (
+            <Typography sx={{ fontSize: '0.9rem', textAlign: 'center', color: '#555', mb: 1 }}>
+              No hay productos en esta venta.
+            </Typography>
+          )}
+          <Divider sx={{ my: 1.5, borderStyle: 'dashed', borderColor: '#999' }} />
+          
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+            <Typography sx={{ fontSize: '1rem', fontWeight: 'bold' }}>TOTAL Bs.</Typography>
+            <Typography sx={{ fontSize: '1rem', fontWeight: 'bold' }}>
+              Bs. {(saleDetails.total ?? 0).toFixed(2)}
+            </Typography>
           </Box>
-          <Divider sx={{ borderStyle: 'dashed', my: 0.5, borderColor: '#666' }} />
-          {/* <Box sx={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'monospace', fontSize: { xs: '8px', sm: '10px', md: '12px' } }}>
-            <Typography>SUBTOTAL Bs.</Typography>
-            <Typography>Bs. {(saleDetails?.subtotal ?? 0).toFixed(2)}</Typography>
-          </Box>
-          <Divider sx={{ borderStyle: 'dashed', my: 0.5, borderColor: '#666' }} /> */}
-          <Box
-            sx={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              fontSize: { xs: '10px', sm: '12px', md: '14px' },
-              fontWeight: 'bold',
-            }}
-          >
-            <Typography>TOTAL Bs.</Typography>
-            <Typography>Bs. {(saleDetails?.total ?? 0).toFixed(2)}</Typography>
-          </Box>
-          <Divider sx={{ borderStyle: 'dashed', my: 0.5, borderColor: '#666' }} />
-          <Typography sx={{ fontSize: { xs: '8px', sm: '10px', md: '12px' } }}>
+          <Divider sx={{ my: 1.5, borderStyle: 'dashed', borderColor: '#999' }} />
+          <Typography sx={{ fontSize: '0.9rem', textAlign: 'left', mb: 0.5 }}>
+            Método de Pago: {saleDetails.primaryPaymentMethod ?? saleDetails.paymentMethod ?? 'N/A'} - Bs. {(saleDetails.paidAmount ?? saleDetails.total ?? 0).toFixed(2)}
+          </Typography>
+          {saleDetails.secondPaymentMethod && (
+            <Typography sx={{ fontSize: '0.9rem', textAlign: 'left', mb: 0.5 }}>
+              Método de Pago: {saleDetails.secondPaymentMethod} - Bs. {(saleDetails.secondPaidAmount ?? 0).toFixed(2)}
+            </Typography>
+          )}
+          <Divider sx={{ my: 1.5, borderStyle: 'dashed', borderColor: '#999' }} />
+          
+          <Typography sx={{ fontSize: '0.9rem', color: '#2e7d32', textAlign: 'center', mb: 2 }}>
             Gracias por su compra
           </Typography>
         </Box>
-        <Box sx={{ mt: 2, display: 'flex', gap: 1, justifyContent: 'center', flexWrap: 'wrap' }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 2 }}>
           <Button
             variant="contained"
             color="primary"
             onClick={handlePrint}
-            sx={{ py: 1, px: 2, fontSize: { xs: '0.7rem', sm: '0.8rem', md: '0.9rem' } }}
+            sx={{ py: 1, px: 2, fontSize: { xs: '0.7rem', sm: '0.8rem', md: '0.9rem' }, bgcolor: '#2e7d32', '&:hover': { bgcolor: '#1b5e20' } }}
           >
             Imprimir Ticket
           </Button>
           <Button
             variant="outlined"
             onClick={() => setOpenTicket(false)}
-            sx={{ py: 1, px: 2, fontSize: { xs: '0.7rem', sm: '0.8rem', md: '0.9rem' } }}
+            sx={{ py: 1, px: 2, fontSize: { xs: '0.7rem', sm: '0.8rem', md: '0.9rem' }, borderColor: '#2e7d32', color: '#2e7d32' }}
           >
             Cerrar
           </Button>
