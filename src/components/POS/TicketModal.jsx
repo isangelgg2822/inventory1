@@ -23,35 +23,39 @@ function TicketModal({ openTicket, setOpenTicket, saleDetails, cashierName, isMo
       return;
     }
     const content = `
+    
       <html>
-        <body style="font-family: Arial, sans-serif; font-size: 12px; padding: 20px; background-color: #f5f5f5;">
-          <div style="text-align: center; max-width: 300px; margin: 0 auto; background-color: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-            <p style="margin: 2px 0; font-size: 16px; font-weight: bold; color: #2e7d32;">🛒 Dxtodito C.A</p>
-            <p style="margin: 2px 0; font-size: 12px; color: #555;">Nota de Entrega #${saleDetails?.saleNumber ?? 'N/A'}</p>
-            <p style="margin: 2px 0; font-size: 12px; color: #555;">Fecha: ${saleDetails?.date ?? 'N/A'}</p>
-            <p style="margin: 4px 0; font-size: 12px; color: #555;">Cajero: ${cashierName ?? 'Desconocido'}</p>
+      
+        <body style="font-family: Arial, sans-serif; font-size: 10px; margin-top:0; padding: 10px; background-color: #f5f5f5;">
+
+          <div style="text-align: center; width: 48mm; margin: 0 auto; background-color: white; padding: 10px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+
+            <p style="margin: 2px 0; font-size: 14px; font-weight: bold; color: #2e7d32;">🛒 Dxtodito C.A</p>
+            <p style="margin: 2px 0; font-size: 10px; color: #555;">Nota de Entrega #${saleDetails?.saleNumber ?? 'N/A'}</p>
+            <p style="margin: 2px 0; font-size: 10px; color: #555;">Fecha: ${saleDetails?.date ?? 'N/A'}</p>
+            <p style="margin: 4px 0; font-size: 10px; color: #555;">Cajero: ${cashierName ?? 'Desconocido'}</p>
             <hr style="border: 1px dashed #999; margin: 10px 0;" />
             ${saleDetails?.items
               ?.map(
                 (item) =>
                   `
                     <div style="display: flex; justify-content: space-between; margin: 4px 0;">
-                      <span style="font-size: 12px; text-align: left;">${item?.name ?? 'Producto Desconocido'} x ${item?.quantity ?? 0}</span>
-                      <span style="font-size: 12px; text-align: right;">Bs. ${(item?.totalBs ?? 0).toFixed(2)}</span>
+                      <span style="font-size: 10px; text-align: left;">${item?.name ?? 'Producto Desconocido'} x ${item?.quantity ?? 0}</span>
+                      <span style="font-size: 10px; text-align: right;">Bs. ${(item?.totalBs ?? 0).toFixed(2)}</span>
                     </div>
                   `
               )
               .join('') ?? ''}
             <hr style="border: 1px dashed #999; margin: 10px 0;" />
             <div style="display: flex; justify-content: space-between; margin: 4px 0;">
-              <p style="font-size: 14px; font-weight: bold; text-align: left;">TOTAL Bs.</p>
-              <p style="font-size: 14px; font-weight: bold; text-align: right;">Bs. ${(saleDetails?.total ?? 0).toFixed(2)}</p>
+              <p style="font-size: 10px; font-weight: bold; text-align: left;">TOTAL Bs.</p>
+              <p style="font-size: 10px; font-weight: bold; text-align: right;">Bs. ${(saleDetails?.total ?? 0).toFixed(2)}</p>
             </div>
             <hr style="border: 1px dashed #999; margin: 10px 0;" />
-            <p style="margin: 4px 0; font-size: 12px; text-align: left;">Método de Pago: ${saleDetails?.primaryPaymentMethod ?? saleDetails?.paymentMethod ?? 'N/A'} - Bs. ${(saleDetails?.paidAmount ?? saleDetails?.total ?? 0).toFixed(2)}</p>
+            <p style="margin: 4px 0; font-size: 10px; text-align: left;">Método de Pago: ${saleDetails?.primaryPaymentMethod ?? saleDetails?.paymentMethod ?? 'N/A'} - Bs. ${(saleDetails?.paidAmount ?? saleDetails?.total ?? 0).toFixed(2)}</p>
             ${saleDetails?.secondPaymentMethod ? `<p style="margin: 4px 0; font-size: 12px; text-align: left;">Método de Pago: ${saleDetails?.secondPaymentMethod ?? 'N/A'} - Bs. ${(saleDetails?.secondPaidAmount ?? 0).toFixed(2)}</p>` : ''}
             <hr style="border: 1px dashed #999; margin: 10px 0;" />
-            <p style="margin: 4px 0; font-size: 12px; color: #2e7d32;">Gracias por su compra</p>
+            <p style="margin: 4px 0; font-size: 10px; color: #2e7d32;">Gracias por su compra</p>
           </div>
         </body>
       </html>
