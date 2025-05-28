@@ -30,7 +30,7 @@ function PointOfSale() {
   const [cartDrawerOpen, setCartDrawerOpen] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('');
   const [secondPaymentMethod, setSecondPaymentMethod] = useState('');
-  const [primaryPaidAmount, setPrimaryPaidAmount] = useState(0); // Nuevo estado
+  const [primaryPaidAmount, setPrimaryPaidAmount] = useState(0);
   const [secondPaidAmount, setSecondPaidAmount] = useState(0);
   const [error, setError] = useState(null);
   const [cashierName, setCashierName] = useState('Usuario');
@@ -250,12 +250,11 @@ function PointOfSale() {
     }
     if (secondPaymentMethod) {
       const sumOfPayments = primaryAmountValue + secondPaidAmountValue;
-      if (Math.abs(sumOfPayments - totalBs) > 0.01) { // Tolerancia para errores de redondeo
+      if (Math.abs(sumOfPayments - totalBs) > 0.01) {
         setError('La suma de los montos de los métodos de pago debe ser igual al total de la venta');
         return;
       }
     } else {
-      // Si solo hay método principal, el monto debe ser igual al total
       if (primaryAmountValue > 0 && Math.abs(primaryAmountValue - totalBs) > 0.01) {
         setError('El monto del método de pago principal debe ser igual al total de la venta');
         return;
@@ -316,11 +315,11 @@ function PointOfSale() {
         tax: taxBs,
         total: totalBs,
         sale_number: saleNumber,
-        payment_method: paymentMethod, // Mantener como referencia general
-        primary_payment_method: paymentMethod, // Guardar método principal
-        paid_amount: primaryAmountValue || totalBs, // Usar el monto ingresado o el total si no se especificó
-        secondary_payment_method: secondPaymentMethod || null, // Método secundario
-        second_paid_amount: secondPaidAmountValue || null, // Monto secundario
+        payment_method: paymentMethod,
+        primary_payment_method: paymentMethod,
+        paid_amount: primaryAmountValue || totalBs,
+        secondary_payment_method: secondPaymentMethod || null,
+        second_paid_amount: secondPaidAmountValue || null,
       };
       const { error: insertGroupError } = await supabase.from('sale_groups').insert([saleGroupData]);
       if (insertGroupError) {
@@ -337,14 +336,17 @@ function PointOfSale() {
         paymentMethod,
         primaryPaymentMethod: paymentMethod,
         paidAmount: primaryAmountValue || totalBs,
+        primaryPaidAmountUsd: paymentMethod === 'Divisa' ? (primaryAmountValue || totalBs) / exchangeRate : null,
         secondPaymentMethod,
         secondPaidAmount: secondPaidAmountValue,
+        secondPaidAmountUsd: secondPaymentMethod === 'Divisa' ? secondPaidAmountValue / exchangeRate : null,
+        exchangeRate,
       });
       setOpenTicket(true);
       setCart([]);
       setPaymentMethod('');
       setSecondPaymentMethod('');
-      setPrimaryPaidAmount(0); // Resetear
+      setPrimaryPaidAmount(0);
       setSecondPaidAmount(0);
       fetchProducts();
       fetchSalesGroups();
@@ -358,7 +360,7 @@ function PointOfSale() {
       setError(`Error al registrar la venta: ${error.message} (Código: ${error.code || 'Desconocido'})`);
       console.error('Registration error:', error);
     }
-  }, [cart, paymentMethod, secondPaymentMethod, primaryPaidAmount, secondPaidAmount, navigate, fetchProducts, fetchSalesGroups, fetchDailySales, fetchTotalProducts, isMobile]);
+  }, [cart, paymentMethod, secondPaymentMethod, primaryPaidAmount, secondPaidAmount, navigate, fetchProducts, fetchSalesGroups, fetchDailySales, fetchTotalProducts, isMobile, exchangeRate]);
 
   // Reprint ticket
   const reprintTicket = useCallback(async (saleGroup) => {
@@ -378,7 +380,6 @@ function PointOfSale() {
     }));
     const subtotal = saleGroupDetails.subtotal ?? saleGroup.items.reduce((sum, item) => sum + (item.total || 0), 0);
 
-    // Manejar compatibilidad con ventas antiguas
     const isLegacySale = !saleGroupDetails.primary_payment_method && !saleGroupDetails.paid_amount;
     const primaryPaymentMethod = isLegacySale
       ? saleGroupDetails.payment_method
@@ -397,11 +398,14 @@ function PointOfSale() {
       paymentMethod: saleGroupDetails.payment_method,
       primaryPaymentMethod: primaryPaymentMethod,
       paidAmount: paidAmount,
+      primaryPaidAmountUsd: primaryPaymentMethod === 'Divisa' ? paidAmount / exchangeRate : null,
       secondPaymentMethod: saleGroupDetails.secondary_payment_method,
       secondPaidAmount: saleGroupDetails.second_paid_amount ?? 0,
+      secondPaidAmountUsd: saleGroupDetails.secondary_payment_method === 'Divisa' ? saleGroupDetails.second_paid_amount / exchangeRate : null,
+      exchangeRate,
     });
     setOpenTicket(true);
-  }, [products, setError]);
+  }, [products, setError, exchangeRate]);
 
   // Cancel sale group
   const cancelSaleGroup = useCallback(async () => {
@@ -566,8 +570,8 @@ function PointOfSale() {
         setPaymentMethod={setPaymentMethod}
         secondPaymentMethod={secondPaymentMethod}
         setSecondPaymentMethod={setSecondPaymentMethod}
-        primaryPaidAmount={primaryPaidAmount} // Pasar el nuevo estado
-        setPrimaryPaidAmount={setPrimaryPaidAmount} // Pasar el setter
+        primaryPaidAmount={primaryPaidAmount}
+        setPrimaryPaidAmount={setPrimaryPaidAmount}
         secondPaidAmount={secondPaidAmount}
         setSecondPaidAmount={setSecondPaidAmount}
         paymentOptions={paymentOptions}
@@ -583,6 +587,7 @@ function PointOfSale() {
         cashierName={cashierName}
         isMobile={isMobile}
         setError={setError}
+        exchangeRate={exchangeRate}
       />
 
       <CancelDialog

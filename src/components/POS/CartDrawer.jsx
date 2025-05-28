@@ -36,8 +36,8 @@ function CartDrawer({
   setPaymentMethod,
   secondPaymentMethod,
   setSecondPaymentMethod,
-  primaryPaidAmount, // Nuevo prop
-  setPrimaryPaidAmount, // Nuevo prop
+  primaryPaidAmount,
+  setPrimaryPaidAmount,
   secondPaidAmount,
   setSecondPaidAmount,
   paymentOptions,
@@ -51,6 +51,8 @@ function CartDrawer({
   const [quantity, setQuantity] = useState('');
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [lastRemovedItem, setLastRemovedItem] = useState(null);
+  const [primaryDisplayAmount, setPrimaryDisplayAmount] = useState('');
+  const [secondDisplayAmount, setSecondDisplayAmount] = useState('');
 
   // Load cart from localStorage on mount
   useEffect(() => {
@@ -64,6 +66,23 @@ function CartDrawer({
   useEffect(() => {
     localStorage.setItem('cart', JSON.stringify(cart));
   }, [cart]);
+
+  // Update display amounts when payment amounts or methods change
+  useEffect(() => {
+    if (paymentMethod === 'Divisa') {
+      setPrimaryDisplayAmount(primaryPaidAmount / exchangeRate || '');
+    } else {
+      setPrimaryDisplayAmount(primaryPaidAmount === 0 ? '' : primaryPaidAmount);
+    }
+  }, [primaryPaidAmount, paymentMethod, exchangeRate]);
+
+  useEffect(() => {
+    if (secondPaymentMethod === 'Divisa') {
+      setSecondDisplayAmount(secondPaidAmount / exchangeRate || '');
+    } else {
+      setSecondDisplayAmount(secondPaidAmount === 0 ? '' : secondPaidAmount);
+    }
+  }, [secondPaidAmount, secondPaymentMethod, exchangeRate]);
 
   const handleSearch = (query) => {
     setSearchQuery(query);
@@ -154,6 +173,18 @@ function CartDrawer({
       setLastRemovedItem(null);
       setSnackbarOpen(false);
     }
+  };
+
+  const handlePrimaryAmountChange = (value) => {
+    setPrimaryDisplayAmount(value);
+    const amount = parseFloat(value) || 0;
+    setPrimaryPaidAmount(paymentMethod === 'Divisa' ? amount * exchangeRate : amount);
+  };
+
+  const handleSecondAmountChange = (value) => {
+    setSecondDisplayAmount(value);
+    const amount = parseFloat(value) || 0;
+    setSecondPaidAmount(secondPaymentMethod === 'Divisa' ? amount * exchangeRate : amount);
   };
 
   const cartTotal = cart.reduce((sum, item) => sum + item.totalBs, 0);
@@ -407,7 +438,7 @@ function CartDrawer({
                     </IconButton>
                   </Box>
                   <Typography sx={{ fontSize: { xs: '10px', sm: '12px', md: '14px', lg: '16px' }, mr: 1 }}>
-                    Bs. {item.totalBs.toFixed(2)}
+                    {paymentMethod === 'Divisa' ? `$ ${ (item.totalBs / exchangeRate).toFixed(2) }` : `Bs. ${item.totalBs.toFixed(2)}`}
                   </Typography>
                   <Tooltip title="Eliminar del Carrito">
                     <IconButton color="error" onClick={() => removeFromCart(index)} size="small">
@@ -443,8 +474,8 @@ function CartDrawer({
                 mb: 2,
               }}
             >
-              <Typography>TOTAL Bs.</Typography>
-              <Typography>Bs. {cartTotal.toFixed(2)}</Typography>
+              <Typography>{paymentMethod === 'Divisa' ? 'TOTAL $' : 'TOTAL Bs.'}</Typography>
+              <Typography>{paymentMethod === 'Divisa' ? `$ ${ (cartTotal / exchangeRate).toFixed(2) }` : `Bs. ${cartTotal.toFixed(2)}`}</Typography>
             </Box>
             <FormControl fullWidth sx={{ mb: 2 }}>
               <InputLabel id="payment-method-label">Método de Pago Principal</InputLabel>
@@ -470,6 +501,24 @@ function CartDrawer({
                 ))}
               </Select>
             </FormControl>
+            <TextField
+              label={`Monto Pagado Principal (${paymentMethod === 'Divisa' ? '$' : 'Bs.'})`}
+              value={primaryDisplayAmount}
+              onChange={(e) => handlePrimaryAmountChange(e.target.value)}
+              variant="outlined"
+              type="number"
+              fullWidth
+              sx={{
+                mb: 2,
+                backgroundColor: '#f5f5f5',
+                borderRadius: '8px',
+                '& .MuiInputBase-input': { fontSize: { xs: '0.8rem', sm: '0.9rem', md: '1rem' } },
+                transition: 'background-color 0.3s',
+                '&:hover': {
+                  backgroundColor: '#e3f2fd',
+                },
+              }}
+            />
             <FormControl fullWidth sx={{ mb: 2 }}>
               <InputLabel id="second-payment-method-label">Método de Pago Secundario</InputLabel>
               <Select
@@ -497,29 +546,11 @@ function CartDrawer({
                   ))}
               </Select>
             </FormControl>
-            <TextField
-              label="Monto Pagado Principal (Bs.)"
-              value={primaryPaidAmount === 0 ? '' : primaryPaidAmount}
-              onChange={(e) => setPrimaryPaidAmount(parseFloat(e.target.value) || 0)}
-              variant="outlined"
-              type="number"
-              fullWidth
-              sx={{
-                mb: 2,
-                backgroundColor: '#f5f5f5',
-                borderRadius: '8px',
-                '& .MuiInputBase-input': { fontSize: { xs: '0.8rem', sm: '0.9rem', md: '1rem' } },
-                transition: 'background-color 0.3s',
-                '&:hover': {
-                  backgroundColor: '#e3f2fd',
-                },
-              }}
-            />
             {secondPaymentMethod && (
               <TextField
-                label="Monto Pagado Secundario (Bs.)"
-                value={secondPaidAmount === 0 ? '' : secondPaidAmount}
-                onChange={(e) => setSecondPaidAmount(parseFloat(e.target.value) || 0)}
+                label={`Monto Pagado Secundario (${secondPaymentMethod === 'Divisa' ? '$' : 'Bs.'})`}
+                value={secondDisplayAmount}
+                onChange={(e) => handleSecondAmountChange(e.target.value)}
                 variant="outlined"
                 type="number"
                 fullWidth

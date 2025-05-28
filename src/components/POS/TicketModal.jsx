@@ -1,4 +1,4 @@
-import { useCallback, useRef, useEffect } from 'react';
+import { useCallback, useEffect } from 'react';
 import Modal from '@mui/material/Modal';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
@@ -7,8 +7,6 @@ import Button from '@mui/material/Button';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 
 function TicketModal({ openTicket, setOpenTicket, saleDetails, cashierName, isMobile, setError }) {
-  const componentRef = useRef();
-
   // Log para depurar saleDetails
   useEffect(() => {
     if (openTicket) {
@@ -48,12 +46,12 @@ function TicketModal({ openTicket, setOpenTicket, saleDetails, cashierName, isMo
               .join('') ?? ''}
             <hr style="border: 1px dashed #999; margin: 10px 0;" />
             <div style="display: flex; justify-content: space-between; margin: 4px 0;">
-              <p style="font-size: 10px; font-weight: bold; text-align: left;">TOTAL Bs.</p>
-              <p style="font-size: 10px; font-weight: bold; text-align: right;">Bs. ${(saleDetails?.total ?? 0).toFixed(2)}</p>
+              <p style="font-size: 10px; font-weight: bold; text-align: left;">${saleDetails?.primaryPaymentMethod === 'Divisa' ? 'TOTAL $' : 'TOTAL Bs.'}</p>
+              <p style="font-size: 10px; font-weight: bold; text-align: right;">${saleDetails?.primaryPaymentMethod === 'Divisa' ? `$ ${(saleDetails?.total / saleDetails?.exchangeRate).toFixed(2)}` : `Bs. ${(saleDetails?.total ?? 0).toFixed(2)}`}</p>
             </div>
             <hr style="border: 1px dashed #999; margin: 10px 0;" />
-            <p style="margin: 4px 0; font-size: 10px; text-align: left;">Método de Pago: ${saleDetails?.primaryPaymentMethod ?? saleDetails?.paymentMethod ?? 'N/A'} - Bs. ${(saleDetails?.paidAmount ?? saleDetails?.total ?? 0).toFixed(2)}</p>
-            ${saleDetails?.secondPaymentMethod ? `<p style="margin: 4px 0; font-size: 12px; text-align: left;">Método de Pago: ${saleDetails?.secondPaymentMethod ?? 'N/A'} - Bs. ${(saleDetails?.secondPaidAmount ?? 0).toFixed(2)}</p>` : ''}
+            <p style="margin: 4px 0; font-size: 10px; text-align: left;">Método de Pago: ${saleDetails?.primaryPaymentMethod ?? saleDetails?.paymentMethod ?? 'N/A'} - ${saleDetails?.primaryPaymentMethod === 'Divisa' ? `$ ${(saleDetails?.paidAmount ?? saleDetails?.total ?? 0) / saleDetails?.exchangeRate}` : `Bs. ${(saleDetails?.paidAmount ?? saleDetails?.total ?? 0).toFixed(2)}`}</p>
+            ${saleDetails?.secondPaymentMethod ? `<p style="margin: 4px 0; font-size: 12px; text-align: left;">Método de Pago: ${saleDetails?.secondPaymentMethod ?? 'N/A'} - ${saleDetails?.secondPaymentMethod === 'Divisa' ? `$ ${(saleDetails?.secondPaidAmount ?? 0) / saleDetails?.exchangeRate}` : `Bs. ${(saleDetails?.secondPaidAmount ?? 0).toFixed(2)}`}</p>` : ''}
             <hr style="border: 1px dashed #999; margin: 10px 0;" />
             <p style="margin: 4px 0; font-size: 10px; color: #2e7d32;">Gracias por su compra</p>
           </div>
@@ -159,18 +157,20 @@ function TicketModal({ openTicket, setOpenTicket, saleDetails, cashierName, isMo
           <Divider sx={{ my: 1.5, borderStyle: 'dashed', borderColor: '#999' }} />
           
           <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-            <Typography sx={{ fontSize: '1rem', fontWeight: 'bold' }}>TOTAL Bs.</Typography>
             <Typography sx={{ fontSize: '1rem', fontWeight: 'bold' }}>
-              Bs. {(saleDetails.total ?? 0).toFixed(2)}
+              {saleDetails.primaryPaymentMethod === 'Divisa' ? 'TOTAL $' : 'TOTAL Bs.'}
+            </Typography>
+            <Typography sx={{ fontSize: '1rem', fontWeight: 'bold' }}>
+              {saleDetails.primaryPaymentMethod === 'Divisa' ? `$ ${(saleDetails.total / saleDetails.exchangeRate).toFixed(2)}` : `Bs. ${(saleDetails.total ?? 0).toFixed(2)}`}
             </Typography>
           </Box>
           <Divider sx={{ my: 1.5, borderStyle: 'dashed', borderColor: '#999' }} />
           <Typography sx={{ fontSize: '0.9rem', textAlign: 'left', mb: 0.5 }}>
-            Método de Pago: {saleDetails.primaryPaymentMethod ?? saleDetails.paymentMethod ?? 'N/A'} - Bs. {(saleDetails.paidAmount ?? saleDetails.total ?? 0).toFixed(2)}
+            Método de Pago: {saleDetails.primaryPaymentMethod ?? saleDetails.paymentMethod ?? 'N/A'} - {saleDetails.primaryPaymentMethod === 'Divisa' ? `$ ${(saleDetails.paidAmount ?? saleDetails.total ?? 0) / saleDetails.exchangeRate}` : `Bs. ${(saleDetails.paidAmount ?? saleDetails.total ?? 0).toFixed(2)}`}
           </Typography>
           {saleDetails.secondPaymentMethod && (
             <Typography sx={{ fontSize: '0.9rem', textAlign: 'left', mb: 0.5 }}>
-              Método de Pago: {saleDetails.secondPaymentMethod} - Bs. {(saleDetails.secondPaidAmount ?? 0).toFixed(2)}
+              Método de Pago: {saleDetails.secondPaymentMethod} - {saleDetails.secondPaymentMethod === 'Divisa' ? `$ ${(saleDetails.secondPaidAmount ?? 0) / saleDetails.exchangeRate}` : `Bs. ${(saleDetails.secondPaidAmount ?? 0).toFixed(2)}`}
             </Typography>
           )}
           <Divider sx={{ my: 1.5, borderStyle: 'dashed', borderColor: '#999' }} />
