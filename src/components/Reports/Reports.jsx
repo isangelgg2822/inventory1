@@ -377,7 +377,7 @@ function Reports() {
         head: [["Método de Pago", "Total (Bs.)", "Total ($)", "Transacciones"]],
         body: Object.entries(paymentSummary).map(([method, data]) => {
           const converted = convertAmount(data.total, method)
-          return [method, converted.bs.toFixed(2), converted.usd.toFixed(2), data.transactions]
+          return [method, converted.bs.toFixed(2), converted.usd.toFixed(3), data.transactions]
         }),
       })
     }
@@ -390,7 +390,7 @@ function Reports() {
         head: [["Método de Pago", "Total Anulado (Bs.)", "Total Anulado ($)", "Transacciones Anuladas"]],
         body: Object.entries(canceledSalesSummary).map(([method, data]) => {
           const converted = convertAmount(data.total, method)
-          return [method, converted.bs.toFixed(2), converted.usd.toFixed(2), data.transactions]
+          return [method, converted.bs.toFixed(2), converted.usd.toFixed(3), data.transactions]
         }),
       })
     }
@@ -474,7 +474,7 @@ function Reports() {
     return {
       "Método de Pago": method,
       "Total (Bs.)": converted.bs.toFixed(2),
-      "Total ($)": converted.usd.toFixed(2),
+      "Total ($)": converted.usd.toFixed(3),
       Transacciones: data.transactions,
     }
   })
@@ -484,7 +484,7 @@ function Reports() {
     return {
       "Método de Pago": method,
       "Total Anulado (Bs.)": converted.bs.toFixed(2),
-      "Total Anulado ($)": converted.usd.toFixed(2),
+      "Total Anulado ($)": converted.usd.toFixed(3),
       "Transacciones Anuladas": data.transactions,
     }
   })
@@ -691,7 +691,7 @@ function Reports() {
                           <TableRow key={method}>
                             <TableCell>{method}</TableCell>
                             <TableCell>{converted.bs.toFixed(2)}</TableCell>
-                            <TableCell>{converted.usd.toFixed(2)}</TableCell>
+                            <TableCell>{converted.usd.toFixed(3)}</TableCell>
                             <TableCell>{data.transactions}</TableCell>
                           </TableRow>
                         )
@@ -743,7 +743,7 @@ function Reports() {
                           <TableRow key={method}>
                             <TableCell>{method}</TableCell>
                             <TableCell>{converted.bs.toFixed(2)}</TableCell>
-                            <TableCell>{converted.usd.toFixed(2)}</TableCell>
+                            <TableCell>{converted.usd.toFixed(3)}</TableCell>
                             <TableCell>{data.transactions}</TableCell>
                           </TableRow>
                         )
@@ -804,5 +804,6 @@ function Reports() {
 }
 
 export default Reports
+
 
 
