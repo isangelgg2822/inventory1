@@ -19,7 +19,7 @@ function Footer() {
       }}
     >
       <Typography variant="body2">
-        © 2025 Dxtodito C.A. | Creado por isangelnik@gmail.com
+        © 2025 Dxtodito C.A. | Todos los derechos reservados.
       </Typography>
     </Box>
   );

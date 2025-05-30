@@ -16,6 +16,8 @@ import ProtectedRoute from './components/ProtectedRoute';
 import Login from './components/auth/Login';
 import Register from './components/auth/Register';
 import ResetPassword from './components/auth/ResetPassword';
+import CashAdvanceManager from "./components/Avance/CashAdvanceManager"
+import CashAdvanceReports from "./components/Avance/CashAdvanceReports"
 import { Box } from '@mui/material';
 import { supabase } from './supabase';
 
@@ -132,6 +134,22 @@ function App() {
                               <Settings />
                             </ProtectedRoute>
                           }
+                        />
+                        <Route
+  path="/avance/gestion"
+  element={
+    <ProtectedRoute session={session}>
+      <CashAdvanceManager />
+    </ProtectedRoute>
+  }
+/>
+<Route
+  path="/avance/reportes"
+  element={
+    <ProtectedRoute session={session}>
+      <CashAdvanceReports />
+    </ProtectedRoute>
+  }
                         />
                         <Route path="*" element={<Navigate to="/login" replace />} />
                       </Routes>
