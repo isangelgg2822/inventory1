@@ -16,12 +16,108 @@ function TicketModal({ openTicket, setOpenTicket, saleDetails, cashierName, isMo
     }
   }, [openTicket, saleDetails])
 
+  // Función para formatear texto con ancho fijo
+  const formatLine = (left, right, width = 32) => {
+    // Asegurarse de que left y right sean strings
+    const leftStr = String(left || "")
+    const rightStr = String(right || "")
+
+    // Truncar el texto izquierdo si es demasiado largo
+    const maxLeftWidth = width - rightStr.length - 1
+    const truncatedLeft = leftStr.length > maxLeftWidth ? leftStr.substring(0, maxLeftWidth - 3) + "..." : leftStr
+
+    // Calcular espacios necesarios
+    const spaces = width - truncatedLeft.length - rightStr.length
+
+    // Retornar la línea formateada
+    return truncatedLeft + " ".repeat(Math.max(1, spaces)) + rightStr
+  }
+
+  // Función para centrar texto
+  const centerText = (text, width = 32) => {
+    const textStr = String(text || "")
+    if (textStr.length >= width) return textStr
+    const leftPadding = Math.floor((width - textStr.length) / 2)
+    return " ".repeat(leftPadding) + textStr
+  }
+
   const handlePrint = useCallback(() => {
     const printWindow = window.open("", "_blank")
     if (!printWindow) {
       setError("No se pudo abrir la ventana de impresión. Por favor, permite las ventanas emergentes para este sitio.")
       return
     }
+
+    // Crear contenido optimizado para impresora térmica Roccia R-C5801
+    let ticketContent = ""
+
+    // Encabezado centrado
+    ticketContent += centerText("DXTODITO C.A") + "\n"
+    ticketContent += centerText("NOTA DE ENTREGA") + "\n"
+    ticketContent += centerText("--------------------------------") + "\n"
+
+    // Información de la venta
+    ticketContent += `Ticket: ${saleDetails?.saleNumber ?? "N/A"}\n`
+    ticketContent += `Fecha: ${saleDetails?.date ?? "N/A"}\n`
+    ticketContent += `Cajero: ${cashierName ?? "Desconocido"}\n`
+    ticketContent += "--------------------------------\n"
+
+    // Productos
+    if (saleDetails?.items?.length > 0) {
+      saleDetails.items.forEach((item) => {
+        const itemName = item?.name ?? "Producto"
+        const quantity = item?.quantity ?? 0
+        const price = (item?.totalBs ?? 0).toFixed(2)
+
+        ticketContent += `${itemName}\n`
+        ticketContent += formatLine(`x${quantity}`, `Bs.${price}`) + "\n"
+      })
+    } else {
+      ticketContent += "No hay productos en esta venta.\n"
+    }
+
+    ticketContent += "--------------------------------\n"
+
+    // Total
+    const totalLabel = saleDetails?.primaryPaymentMethod === "Divisa" ? "TOTAL $" : "TOTAL Bs."
+    const totalAmount =
+      saleDetails?.primaryPaymentMethod === "Divisa"
+        ? `$${(saleDetails?.total / saleDetails?.exchangeRate).toFixed(2)}`
+        : `Bs.${(saleDetails?.total ?? 0).toFixed(2)}`
+
+    ticketContent += formatLine(totalLabel, totalAmount) + "\n"
+    ticketContent += "--------------------------------\n"
+
+    // Métodos de pago
+    const primaryMethod = saleDetails?.primaryPaymentMethod ?? saleDetails?.paymentMethod ?? "N/A"
+    const primaryAmount =
+      saleDetails?.primaryPaymentMethod === "Divisa"
+        ? `$${((saleDetails?.paidAmount ?? saleDetails?.total ?? 0) / saleDetails?.exchangeRate).toFixed(2)}`
+        : `Bs.${(saleDetails?.paidAmount ?? saleDetails?.total ?? 0).toFixed(2)}`
+
+    ticketContent += `Pago: ${primaryMethod}\n`
+    ticketContent += `Monto: ${primaryAmount}\n`
+
+    if (saleDetails?.secondPaymentMethod) {
+      const secondMethod = saleDetails.secondPaymentMethod
+      const secondAmount =
+        saleDetails.secondPaymentMethod === "Divisa"
+          ? `$${((saleDetails?.secondPaidAmount ?? 0) / saleDetails?.exchangeRate).toFixed(2)}`
+          : `Bs.${(saleDetails?.secondPaidAmount ?? 0).toFixed(2)}`
+
+      ticketContent += `Pago 2: ${secondMethod}\n`
+      ticketContent += `Monto: ${secondAmount}\n`
+    }
+
+    ticketContent += "--------------------------------\n"
+
+    // Mensaje final centrado
+    ticketContent += centerText("GRACIAS POR SU COMPRA") + "\n"
+
+    // Espacio para corte
+    ticketContent += "\n\n\n"
+
+    // Crear el HTML para la impresión
     const content = `
       <html>
         <head>
@@ -29,55 +125,45 @@ function TicketModal({ openTicket, setOpenTicket, saleDetails, cashierName, isMo
             @page {
               margin: 0;
               padding: 0;
+              width: 80mm;
+              height: auto;
             }
-            * {
+            body {
               margin: 0;
               padding: 0;
-              box-sizing: border-box;
+              font-family: 'Courier New', monospace;
+              font-size: 12px;
+              line-height: 1.2;
+              width: 80mm;
+              background-color: white;
+            }
+            pre {
+              margin: 0;
+              padding: 0;
+              font-family: 'Courier New', monospace;
+              font-size: 12px;
+              line-height: 1.2;
+              white-space: pre;
+              width: 100%;
             }
           </style>
         </head>
-        <body style="font-family: Arial, sans-serif; font-size: 10px; margin: 0; padding: 0; background-color: #f5f5f5;">
-
-          <div style="text-align: center; width: 80mm; margin: 0 auto; background-color: white; padding: 10px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-
-            <p style="margin: 2px 0; font-size: 12px; font-weight: bold; color: #2e7d32;">🛒 Dxtodito C.A</p>
-            <p style="margin: 2px 0; font-size: 10px; color: #555;">Nota de Entrega #${saleDetails?.saleNumber ?? "N/A"}</p>
-            <p style="margin: 2px 0; font-size: 10px; color: #555;">Fecha: ${saleDetails?.date ?? "N/A"}</p>
-            <p style="margin: 4px 0; font-size: 10px; color: #555;">Cajero: ${cashierName ?? "Desconocido"}</p>
-            <hr style="border: 1px dashed #999; margin: 10px 0;" />
-            ${
-              saleDetails?.items
-                ?.map(
-                  (item) =>
-                    `
-                    <div style="display: flex; justify-content: space-between; margin: 4px 0;">
-                      <span style="font-size: 10px; text-align: left;">${item?.name ?? "Producto Desconocido"} x ${item?.quantity ?? 0}</span>
-                      <span style="font-size: 10px; text-align: right;">Bs. ${(item?.totalBs ?? 0).toFixed(2)}</span>
-                    </div>
-                  `,
-                )
-                .join("") ?? ""
-            }
-            <hr style="border: 1px dashed #999; margin: 10px 0;" />
-            <div style="display: flex; justify-content: space-between; margin: 4px 0;">
-              <p style="font-size: 10px; font-weight: bold; text-align: left;">${saleDetails?.primaryPaymentMethod === "Divisa" ? "TOTAL $" : "TOTAL Bs."}</p>
-              <p style="font-size: 10px; font-weight: bold; text-align: right;">${saleDetails?.primaryPaymentMethod === "Divisa" ? `$ ${(saleDetails?.total / saleDetails?.exchangeRate).toFixed(2)}` : `Bs. ${(saleDetails?.total ?? 0).toFixed(2)}`}</p>
-            </div>
-            <hr style="border: 1px dashed #999; margin: 10px 0;" />
-            <p style="margin: 4px 0; font-size: 10px; text-align: left;">Método de Pago: ${saleDetails?.primaryPaymentMethod ?? saleDetails?.paymentMethod ?? "N/A"} - ${saleDetails?.primaryPaymentMethod === "Divisa" ? `$ ${(saleDetails?.paidAmount ?? saleDetails?.total ?? 0) / saleDetails?.exchangeRate}` : `Bs. ${(saleDetails?.paidAmount ?? saleDetails?.total ?? 0).toFixed(2)}`}</p>
-            ${saleDetails?.secondPaymentMethod ? `<p style="margin: 4px 0; font-size: 12px; text-align: left;">Método de Pago: ${saleDetails?.secondPaymentMethod ?? "N/A"} - ${saleDetails?.secondPaymentMethod === "Divisa" ? `$ ${(saleDetails?.secondPaidAmount ?? 0) / saleDetails?.exchangeRate}` : `Bs. ${(saleDetails?.secondPaidAmount ?? 0).toFixed(2)}`}</p>` : ""}
-            <hr style="border: 1px dashed #999; margin: 10px 0;" />
-            <p style="margin: 4px 0; font-size: 10px; color: #2e7d32;">Gracias por su compra</p>
-          </div>
+        <body>
+          <pre>${ticketContent}</pre>
         </body>
       </html>
     `
+
     printWindow.document.write(content)
     printWindow.document.close()
     printWindow.focus()
-    printWindow.print()
-    printWindow.close()
+
+    // Usar setTimeout para asegurar que el contenido se cargue antes de imprimir
+    setTimeout(() => {
+      printWindow.print()
+      // Cerrar la ventana después de imprimir
+      printWindow.close()
+    }, 500)
   }, [saleDetails, cashierName, setError])
 
   if (!saleDetails) {
@@ -183,14 +269,14 @@ function TicketModal({ openTicket, setOpenTicket, saleDetails, cashierName, isMo
           <Typography sx={{ fontSize: "0.9rem", textAlign: "left", mb: 0.5 }}>
             Método de Pago: {saleDetails.primaryPaymentMethod ?? saleDetails.paymentMethod ?? "N/A"} -{" "}
             {saleDetails.primaryPaymentMethod === "Divisa"
-              ? `$ ${(saleDetails.paidAmount ?? saleDetails.total ?? 0) / saleDetails.exchangeRate}`
+              ? `$ ${((saleDetails.paidAmount ?? saleDetails.total ?? 0) / saleDetails.exchangeRate).toFixed(2)}`
               : `Bs. ${(saleDetails.paidAmount ?? saleDetails.total ?? 0).toFixed(2)}`}
           </Typography>
           {saleDetails.secondPaymentMethod && (
             <Typography sx={{ fontSize: "0.9rem", textAlign: "left", mb: 0.5 }}>
               Método de Pago: {saleDetails.secondPaymentMethod} -{" "}
               {saleDetails.secondPaymentMethod === "Divisa"
-                ? `$ ${(saleDetails.secondPaidAmount ?? 0) / saleDetails.exchangeRate}`
+                ? `$ ${((saleDetails.secondPaidAmount ?? 0) / saleDetails.exchangeRate).toFixed(2)}`
                 : `Bs. ${(saleDetails.secondPaidAmount ?? 0).toFixed(2)}`}
             </Typography>
           )}
