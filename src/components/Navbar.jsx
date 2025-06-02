@@ -123,11 +123,11 @@ function Navbar({ open, setOpen }) {
           icon: <MoneyIcon />,
           path: "/avance/gestion",
         },
-        {
-          text: "Reportes",
-          icon: <ReceiptLongIcon />,
-          path: "/avance/reportes",
-        },
+        // {
+        //   text: "Reportes",
+        //   icon: <ReceiptLongIcon />,
+        //   path: "/avance/reportes",
+        // },
       ],
     },
     { text: "Configuración", icon: <SettingsIcon />, path: "/settings" },
