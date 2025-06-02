@@ -46,7 +46,7 @@ function PointOfSale() {
     'Débito',
     'Biopago',
     'Pago Móvil',
-    'Avance de Efectivo',
+   
   ];
 
   // Fetch user role
